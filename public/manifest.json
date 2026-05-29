@@ -1,0 +1,16 @@
+{
+  "name": "GRIND",
+  "short_name": "GRIND",
+  "description": "Turn your life into a game. Win it every day.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#080808",
+  "theme_color": "#FFD700",
+  "orientation": "portrait-primary",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ],
+  "screenshots": [],
+  "categories": ["health", "fitness", "lifestyle"]
+}
