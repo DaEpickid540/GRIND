@@ -2,6 +2,7 @@ import { logout } from "../lib/firebase";
 import { useAuth } from "../hooks/useAuth";
 import { getLevelInfo } from "../data/gameData";
 import { getAIConfig, PROVIDERS } from "../lib/aiProvider";
+import { getItemById } from "../data/storeItems";
 
 const NAV = [
   { id:"dashboard",   icon:"⚡", label:"Today"        },
@@ -14,6 +15,7 @@ const NAV = [
   { id:"friends",     icon:"👥", label:"Friends"      },
   { id:"classes",     icon:"🎓", label:"Classes"      },
   { id:"leaderboard", icon:"🏆", label:"Leaderboard"  },
+  { id:"store",       icon:"🏪", label:"Store"        },
   { id:"widgets",     icon:"📱", label:"Home Screen"  },
   { id:"stats",       icon:"📊", label:"Stats"        },
   { id:"tutorial",    icon:"📖", label:"Setup Guide"  },
@@ -33,6 +35,16 @@ export default function Sidebar({ page, setPage, onOpenSettings, isOpen, onClose
     return profile.lastCheckIn!==yesterday.toISOString().split("T")[0] && profile.lastCheckIn!==today && !profile.excuseActive;
   })();
 
+  // Equipped cosmetics
+  const equipped   = profile?.equippedItems || {};
+  const equippedBadge  = equipped.badge  ? getItemById(equipped.badge)  : null;
+  const equippedFrame  = equipped.frame  ? getItemById(equipped.frame)  : null;
+  const equippedTitle  = equipped.title  ? getItemById(equipped.title)  : null;
+  const equippedStreak = equipped.streak ? getItemById(equipped.streak) : null;
+  const streakIcon     = equippedStreak ? equippedStreak.display : (streakAtRisk ? "⚠️" : "🔥");
+
+  const coins = profile?.coins ?? 0;
+
   return (
     <aside className={`sidebar${isOpen ? " open" : ""}`}>
       <div className="sidebar-logo">
@@ -43,11 +55,19 @@ export default function Sidebar({ page, setPage, onOpenSettings, isOpen, onClose
 
       {user && (
         <div className="sidebar-user">
-          {user.photoURL
-            ? <img src={user.photoURL} className="sidebar-avatar" referrerPolicy="no-referrer" alt=""/>
-            : <div className="sidebar-avatar placeholder">?</div>}
+          <div className={`sidebar-avatar-wrap${equippedFrame ? ` frame-${equippedFrame.display}` : ""}`}>
+            {user.photoURL
+              ? <img src={user.photoURL} className="sidebar-avatar" referrerPolicy="no-referrer" alt=""/>
+              : <div className="sidebar-avatar placeholder">?</div>}
+            {equippedBadge && (
+              <span className="sidebar-avatar-badge">{equippedBadge.display}</span>
+            )}
+          </div>
           <div className="sidebar-user-info">
             <div className="sidebar-name">{user.displayName?.split(" ")[0]}</div>
+            {equippedTitle && (
+              <div className="sidebar-equipped-title">[{equippedTitle.display}]</div>
+            )}
             {li && <div className="sidebar-level" style={{ color:li.current.color }}>{li.current.emoji} {li.current.title}</div>}
           </div>
         </div>
@@ -60,9 +80,19 @@ export default function Sidebar({ page, setPage, onOpenSettings, isOpen, onClose
         </div>
       )}
 
+      {/* Coin balance */}
+      {profile && (
+        <div className="sidebar-coins" onClick={() => setPage("store")} title="Go to Store">
+          <span className="sidebar-coins-icon">🪙</span>
+          <span className="sidebar-coins-count">{coins.toLocaleString()}</span>
+          <span className="sidebar-coins-label">coins</span>
+          <span className="sidebar-coins-arrow">→</span>
+        </div>
+      )}
+
       {profile?.streak > 0 && (
         <div className={`sidebar-streak ${streakAtRisk?"at-risk":""}`}>
-          <span className="streak-fire">{streakAtRisk?"⚠️":"🔥"}</span>
+          <span className="streak-fire">{streakIcon}</span>
           <div>
             <div style={{ display:"flex", alignItems:"baseline", gap:4 }}>
               <span className="streak-num" style={{ color:streakAtRisk?"#FF9800":"#FF4D4D" }}>{profile.streak}</span>

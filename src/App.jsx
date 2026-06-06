@@ -27,6 +27,7 @@ const Widgets       = lazy(() => import("./pages/Widgets"));
 const PublicProfile = lazy(() => import("./pages/PublicProfile"));// pulls qrcode
 const Classes       = lazy(() => import("./pages/Classes"));
 const Tutorial      = lazy(() => import("./pages/Tutorial"));
+const Store         = lazy(() => import("./pages/Store"));
 
 // Lazy modals — only load when opened
 const SettingsModal    = lazy(() => import("./components/SettingsModal"));
@@ -127,6 +128,7 @@ function AppInner() {
           {page==="friends"     && <Friends/>}
           {page==="leaderboard" && <Leaderboard/>}
           {page==="classes"     && <Classes/>}
+          {page==="store"       && <Store/>}
           {page==="widgets"     && <Widgets/>}
           {page==="tutorial"    && <Tutorial/>}
           {page==="stats"       && <Stats/>}

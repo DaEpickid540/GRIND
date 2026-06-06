@@ -32,6 +32,7 @@ export async function getOrCreateUser(user) {
     lastCheckIn: null, excuseActive: null,
     gymRecords: [], friends: [], weeklyPlan: null,
     planTasksDone: {},
+    coins: 0, ownedItems: [], equippedItems: {},
     createdAt: serverTimestamp(),
   };
   await setDoc(ref, profile);
@@ -64,6 +65,10 @@ export async function submitCheckIn(uid, habits, todayStr, habitCategories) {
   const streakBonus = newStreak >= 7 ? Math.min(Math.floor(newStreak / 7) * 10, 50) : 0;
   xpGained += streakBonus;
 
+  // Coins: 1 per completed habit, no bonus (flat rate regardless of XP value)
+  const coinsEarned = Object.values(habits).filter(Boolean).length;
+  const newCoins    = (profile.coins || 0) + coinsEarned;
+
   const newXP    = (profile.xp||0) + xpGained;
   const newLevel = Math.floor(Math.sqrt(newXP / 100)) + 1;
   const levelUp  = newLevel > (profile.level||1);
@@ -74,6 +79,7 @@ export async function submitCheckIn(uid, habits, todayStr, habitCategories) {
     lastCheckIn: todayStr,
     xp: newXP,
     level: newLevel,
+    coins: newCoins,
   });
   await setDoc(doc(db,"users",uid,"checkins",todayStr), {
     habits, xpGained, streakBonus, streak: newStreak, timestamp: serverTimestamp(),
@@ -83,7 +89,7 @@ export async function submitCheckIn(uid, habits, todayStr, habitCategories) {
   // Fire-and-forget — don't block the return on this
   syncMemberProgress(uid, { xp:newXP, streak:newStreak, lastCheckIn:todayStr }).catch(()=>{});
 
-  return { xpGained, streakBonus, newStreak, newLevel, newXP, levelUp, prevLevel: profile.level||1 };
+  return { xpGained, streakBonus, newStreak, newLevel, newXP, levelUp, prevLevel: profile.level||1, coinsEarned, newCoins };
 }
 
 // Fetch a single day's check-in doc (used for re-check-in pre-population)
@@ -111,8 +117,12 @@ export async function updateCheckIn(uid, allHabits, previousHabits, todayStr, ha
   const newLevel = Math.floor(Math.sqrt(newXP / 100)) + 1;
   const levelUp  = newLevel > (profile.level || 1);
 
+  // Coins: 1 per newly completed habit
+  const coinsEarned = newlyChecked.length;
+  const newCoins    = (profile.coins || 0) + coinsEarned;
+
   await Promise.all([
-    updateDoc(doc(db, "users", uid), { xp: newXP, level: newLevel }),
+    updateDoc(doc(db, "users", uid), { xp: newXP, level: newLevel, coins: newCoins }),
     updateDoc(doc(db, "users", uid, "checkins", todayStr), {
       habits: allHabits,
       xpGained: prevXPGained + xpGained,
@@ -122,7 +132,7 @@ export async function updateCheckIn(uid, allHabits, previousHabits, todayStr, ha
 
   syncMemberProgress(uid, { xp: newXP, streak: profile.streak || 0, lastCheckIn: todayStr }).catch(() => {});
 
-  return { xpGained, newXP, newLevel, levelUp, noChange: false, prevLevel: profile.level || 1 };
+  return { xpGained, newXP, newLevel, levelUp, noChange: false, prevLevel: profile.level || 1, coinsEarned, newCoins };
 }
 
 export const setExcuse   = async (uid, reason, days=1) => {
@@ -157,6 +167,25 @@ export const saveCustomHabits  = (uid, categories) =>
 // Pass null to clear and revert to defaults
 export const saveCustomExcuses = (uid, excuses) =>
   updateDoc(doc(db,"users",uid), { customExcuses: excuses });
+
+// ── Store / coin system ─────────────────────────────────────────────────────
+export async function purchaseItem(uid, item) {
+  const profile = await getUserProfile(uid);
+  const coins   = profile?.coins || 0;
+  if (coins < item.cost)              throw new Error("Not enough coins");
+  const owned   = profile?.ownedItems || [];
+  if (owned.includes(item.id))        throw new Error("Already owned");
+  await updateDoc(doc(db,"users",uid), {
+    coins:      coins - item.cost,
+    ownedItems: arrayUnion(item.id),
+  });
+}
+
+export const equipItem   = (uid, slot, itemId) =>
+  updateDoc(doc(db,"users",uid), { [`equippedItems.${slot}`]: itemId });
+
+export const unequipItem = (uid, slot) =>
+  updateDoc(doc(db,"users",uid), { [`equippedItems.${slot}`]: null });
 
 export const saveWeeklyPlan = (uid, plan) => updateDoc(doc(db,"users",uid), { weeklyPlan: plan, planTasksDone: {} });
 export const togglePlanTask = (uid, key, current) => updateDoc(doc(db,"users",uid), { [`planTasksDone.${key}`]: !current });
