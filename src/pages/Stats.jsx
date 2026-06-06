@@ -24,8 +24,9 @@ export default function Stats() {
     return {date:c.date.slice(5), pct:vals.length?Math.round((d/vals.length)*100):0};
   });
 
-  // Radar: completion per category
-  const catRadar = Object.entries(HABIT_CATEGORIES).map(([,cat])=>{
+  // Radar: completion per category — uses user's custom habits if set, else defaults
+  const activeCategories = profile?.customHabits || HABIT_CATEGORIES;
+  const catRadar = Object.entries(activeCategories).map(([,cat])=>{
     let total=0,done=0;
     checkins.slice(-14).forEach(c=>{ cat.habits.forEach(h=>{ total++; if(c.habits?.[h.id]) done++; }); });
     return { cat:cat.label, value: total ? Math.round((done/total)*100) : 0 };

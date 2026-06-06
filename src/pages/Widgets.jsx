@@ -98,7 +98,8 @@ export default function Widgets() {
   const streak = profile?.streak||0;
   const xp     = profile?.xp||0;
   const level  = profile?.level||1;
-  const total  = Object.values(HABIT_CATEGORIES).flatMap(c=>c.habits).length;
+  const activeCategories = profile?.customHabits || HABIT_CATEGORIES;
+  const total  = Object.values(activeCategories).flatMap(c=>c.habits).length;
   const today  = new Date().toISOString().split("T")[0];
   const pct    = 0; // Would be today's progress, shown as 0 for preview
 

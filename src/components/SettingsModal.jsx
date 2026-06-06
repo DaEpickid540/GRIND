@@ -44,9 +44,8 @@ export default function SettingsModal({ onClose, onResetKey }) {
   const [verified,   setVerified]   = useState(false);
   const [keyError,   setKeyError]   = useState("");
 
-  // Habits tab state
-  const [newHabit, setNewHabit] = useState({ label:"", categoryId:"fitness", xp:10 });
-  const [customHabits, setCustomHabits] = useState(settings.customHabits || []);
+  // Active categories — user's custom ones from Firestore, or the generic defaults
+  const activeCategories = profile?.customHabits || HABIT_CATEGORIES;
 
   // Data tab state
   const [exporting,  setExporting]  = useState(false);
@@ -131,32 +130,6 @@ export default function SettingsModal({ onClose, onResetKey }) {
     onResetKey?.();
   }
 
-  // ── Habits tab ──────────────────────────────────────────────────────────
-  function toggleCategory(catId) {
-    const current = settings.enabledCategories || Object.keys(HABIT_CATEGORIES);
-    const next = current.includes(catId)
-      ? current.filter(c => c !== catId)
-      : [...current, catId];
-    if (next.length === 0) { toast("Need at least one category enabled", "warning"); return; }
-    update("enabledCategories", next);
-  }
-
-  function addCustomHabit() {
-    if (!newHabit.label.trim()) { toast("Enter a habit name", "warning"); return; }
-    const habit = { ...newHabit, id:`custom_${Date.now()}`, label:newHabit.label.trim() };
-    const next = [...customHabits, habit];
-    setCustomHabits(next);
-    update("customHabits", next);
-    setNewHabit({ label:"", categoryId:"fitness", xp:10 });
-    toast("Custom habit added ✅", "success");
-  }
-
-  function removeCustomHabit(id) {
-    const next = customHabits.filter(h => h.id !== id);
-    setCustomHabits(next);
-    update("customHabits", next);
-  }
-
   // ── Data tab ─────────────────────────────────────────────────────────
   async function exportData() {
     if (!user) return;
@@ -202,7 +175,6 @@ export default function SettingsModal({ onClose, onResetKey }) {
 
   const prov = PROVIDERS[aiProvider];
   const activeAI = getAIConfig();
-  const enabled  = settings.enabledCategories || Object.keys(HABIT_CATEGORIES);
 
   return (
     <div className="settings-overlay" onClick={e => e.target===e.currentTarget && onClose()}>
@@ -342,58 +314,33 @@ export default function SettingsModal({ onClose, onResetKey }) {
             {tab==="habits" && (
               <div className="sform">
                 <div className="sform-title">Habit Categories</div>
-                <p className="sform-sub">Enable/disable categories and add your own custom habits.</p>
+                <p className="sform-sub">
+                  Your habits are fully customizable — add categories, habits, and custom XP values.
+                </p>
 
-                <label className="slabel">Active Categories</label>
-                <div className="cat-toggles">
-                  {Object.entries(HABIT_CATEGORIES).map(([id, cat]) => (
-                    <button key={id}
-                      className={`cat-toggle-btn ${enabled.includes(id)?"active":""}`}
-                      style={{ "--cc":cat.color }}
-                      onClick={() => toggleCategory(id)}>
-                      <span style={{ fontSize:20 }}>{cat.icon}</span>
-                      <span style={{ fontWeight:700, fontSize:13 }}>{cat.label}</span>
-                      <span className="cat-toggle-check">{enabled.includes(id)?"✓":""}</span>
-                    </button>
+                <div className="habits-settings-preview">
+                  {Object.entries(activeCategories).map(([id, cat]) => (
+                    <div key={id} className="habit-preview-row" style={{ borderLeft:`3px solid ${cat.color}` }}>
+                      <span style={{ fontSize:18 }}>{cat.icon}</span>
+                      <span style={{ color:cat.color, fontWeight:700, fontSize:13 }}>{cat.label}</span>
+                      <span style={{ marginLeft:"auto", fontSize:11, color:"#555" }}>
+                        {cat.habits.length} habit{cat.habits.length!==1?"s":""}
+                      </span>
+                    </div>
                   ))}
+                  {Object.keys(activeCategories).length === 0 && (
+                    <p style={{ color:"#555", fontSize:13 }}>No habits configured yet.</p>
+                  )}
                 </div>
 
                 <div className="sdivider"/>
 
-                <div className="sform-title" style={{ fontSize:14 }}>Custom Habits</div>
-                <div className="custom-habit-form">
-                  <input className="sinp" placeholder="Habit name (e.g. Practice guitar)"
-                    value={newHabit.label} onChange={e=>setNewHabit(h=>({...h,label:e.target.value}))}
-                    onKeyDown={e=>e.key==="Enter"&&addCustomHabit()}/>
-                  <select className="sinp" value={newHabit.categoryId}
-                    onChange={e=>setNewHabit(h=>({...h,categoryId:e.target.value}))}>
-                    {Object.entries(HABIT_CATEGORIES).map(([id,cat])=>(
-                      <option key={id} value={id}>{cat.icon} {cat.label}</option>
-                    ))}
-                  </select>
-                  <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                    <label className="slabel" style={{ margin:0, whiteSpace:"nowrap" }}>XP</label>
-                    <input className="sinp" type="number" min={1} max={50} value={newHabit.xp}
-                      onChange={e=>setNewHabit(h=>({...h,xp:+e.target.value}))} style={{ width:80 }}/>
-                    <button className="sbtn-save" onClick={addCustomHabit}>Add</button>
-                  </div>
-                </div>
-
-                {customHabits.length > 0 && (
-                  <div className="custom-habits-list">
-                    {customHabits.map(h => {
-                      const cat = HABIT_CATEGORIES[h.categoryId];
-                      return (
-                        <div key={h.id} className="custom-habit-row">
-                          <span style={{ color:cat?.color, fontSize:16 }}>{cat?.icon}</span>
-                          <span style={{ flex:1, fontSize:14 }}>{h.label}</span>
-                          <span style={{ color:"#FFD700", fontFamily:"monospace", fontSize:12 }}>+{h.xp} XP</span>
-                          <button className="habit-remove" onClick={()=>removeCustomHabit(h.id)}>✕</button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+                <p className="sform-sub" style={{ marginBottom:10 }}>
+                  To add, edit, or remove categories and habits, use the Customize button on the Today page.
+                </p>
+                <button className="sbtn-save" onClick={onClose} style={{ alignSelf:"flex-start" }}>
+                  ✏️ Go to Today → Customize
+                </button>
               </div>
             )}
 
