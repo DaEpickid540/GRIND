@@ -78,8 +78,10 @@ export default function Dashboard() {
     setHabits(h => ({ ...h, [id]: !h[id] }));
   };
 
-  const done   = Object.values(habits).filter(Boolean).length;
-  const pct    = total > 0 ? Math.round((done / total) * 100) : 0;
+  // Count only habits that actually exist in the current active categories
+  // (guards against stale IDs from old/removed habits inflating > 100%)
+  const done   = allActiveHabits.filter(h => habits[h.id]).length;
+  const pct    = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0;
   const catPct = cat => {
     if (!cat.habits.length) return 0;
     const d = cat.habits.filter(x => habits[x.id]).length;
