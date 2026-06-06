@@ -1,9 +1,32 @@
 import { useState, useRef, useEffect } from "react";
-import { callAI } from "../lib/aiProvider";
+import { callAI, getAIConfig, getModelInfo, PROVIDERS } from "../lib/aiProvider";
 import { useToast } from "../components/Toast";
 import { useAuth } from "../hooks/useAuth";
 import { saveScanResult, getScanHistory } from "../lib/firebase";
 import { buildSystemPrompt } from "../lib/coachVoice";
+
+// All AI Scans require image upload — warn if the selected model can't see images
+function VisionOnlyBanner() {
+  const cfg = getAIConfig();
+  if (!cfg?.provider) return null;
+  const actualModel = cfg.model || PROVIDERS[cfg.provider]?.defaultModel;
+  if (!actualModel) return null;
+  const info = getModelInfo(actualModel);
+  if (info.vision !== false) return null;
+  return (
+    <div className="vision-only-banner">
+      <span className="vision-only-icon">👁️</span>
+      <div>
+        <strong>Visual model required — all AI Scans need photo analysis</strong>
+        <span style={{ display:"block", fontSize:12, color:"#FF9800", marginTop:2 }}>
+          "{info.label}" is a text-only model and cannot analyze images. Go to{" "}
+          <strong>Settings → AI</strong> and switch to a vision-capable model
+          (e.g. Gemini 2.0 Flash, GPT-4o, Claude Sonnet, Llama 3.2 Vision).
+        </span>
+      </div>
+    </div>
+  );
+}
 
 function parseAIJson(text) {
   const stripped = text.replace(/```json|```/g, "").trim();
@@ -113,6 +136,7 @@ export default function AIScans() {
   return (
     <div className="page-content">
       <div className="page-header"><div><h1 className="page-title">📸 AI Scans</h1><p className="page-sub">Upload a photo for instant AI analysis</p></div></div>
+      <VisionOnlyBanner />
       <div className="scan-tabs">
         {SCAN_TYPES.map(s => <button key={s.id} className={`scan-tab ${active.id===s.id?"active":""}`} onClick={()=>switchScan(s)}><span style={{ fontSize:20 }}>{s.icon}</span><span>{s.label}</span></button>)}
       </div>
