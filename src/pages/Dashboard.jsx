@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "../hooks/useAuth";
-import { submitCheckIn, setExcuse } from "../lib/firebase";
-import { HABIT_CATEGORIES, EXCUSES, ALL_HABITS, STREAK_MILESTONES } from "../data/gameData";
+import { submitCheckIn, setExcuse, saveCustomHabits, saveCustomExcuses } from "../lib/firebase";
+import { HABIT_CATEGORIES, EXCUSES, STREAK_MILESTONES } from "../data/gameData";
 import { useToast } from "../components/Toast";
 import Confetti from "../components/Confetti";
+import HabitCustomizer from "../components/HabitCustomizer";
 
 function CompletionRing({ pct, size=80, stroke=7, color="#FFD700" }) {
   const r = (size - stroke*2) / 2, circ = 2 * Math.PI * r;
@@ -19,16 +20,24 @@ function CompletionRing({ pct, size=80, stroke=7, color="#FFD700" }) {
 
 export default function Dashboard() {
   const { user, profile, refreshProfile } = useAuth();
-  const toast      = useToast();
-  const [habits,     setHabits]     = useState({});
-  const [showExcuse, setShowExcuse] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [result,     setResult]     = useState(null);
-  const [checkedIn,  setCheckedIn]  = useState(false);
-  const [confetti,   setConfetti]   = useState(false);
-  const [xpBreakdown, setXpBreakdown] = useState(null);
+  const toast = useToast();
+
+  const [habits,          setHabits]         = useState({});
+  const [showExcuse,      setShowExcuse]      = useState(false);
+  const [showCustomizer,  setShowCustomizer]  = useState(false);
+  const [submitting,      setSubmitting]      = useState(false);
+  const [result,          setResult]          = useState(null);
+  const [checkedIn,       setCheckedIn]       = useState(false);
+  const [confetti,        setConfetti]        = useState(false);
+  const [xpBreakdown,     setXpBreakdown]     = useState(null);
 
   const today = new Date().toISOString().split("T")[0];
+
+  // Use user's custom habits if saved, otherwise fall back to generic defaults
+  const activeCategories = profile?.customHabits || HABIT_CATEGORIES;
+  const activeExcuses    = profile?.customExcuses || EXCUSES;
+  const allActiveHabits  = Object.values(activeCategories).flatMap(c => c.habits);
+  const total            = allActiveHabits.length;
 
   useEffect(() => {
     if (profile?.lastCheckIn === today) setCheckedIn(true);
@@ -46,39 +55,30 @@ export default function Dashboard() {
   }, [checkedIn, habits]);
 
   const toggle = id => setHabits(h => ({ ...h, [id]: !h[id] }));
-  const total  = ALL_HABITS.length;
   const done   = Object.values(habits).filter(Boolean).length;
-  const pct    = Math.round((done / total) * 100);
+  const pct    = total > 0 ? Math.round((done / total) * 100) : 0;
   const catPct = cat => {
     const h = cat.habits, d = h.filter(x => habits[x.id]).length;
-    return Math.round((d / h.length) * 100);
+    return h.length > 0 ? Math.round((d / h.length) * 100) : 0;
   };
 
-  // Calculate live XP preview using actual per-habit values
-  const liveXP = (() => {
-    let xp = 0;
-    Object.values(HABIT_CATEGORIES).flatMap(c => c.habits).forEach(h => {
-      if (habits[h.id]) xp += h.xp;
-    });
-    return xp;
-  })();
+  // Live XP preview using per-habit values
+  const liveXP = allActiveHabits.reduce((acc, h) => acc + (habits[h.id] ? h.xp : 0), 0);
 
   async function handleSubmit() {
     if (submitting || checkedIn) return;
     setSubmitting(true);
     try {
-      const r = await submitCheckIn(user.uid, habits, today, HABIT_CATEGORIES);
+      const r = await submitCheckIn(user.uid, habits, today, activeCategories);
       setResult(r);
       setCheckedIn(true);
       await refreshProfile();
 
-      // Breakdown for the XP modal
-      const breakdown = Object.values(HABIT_CATEGORIES).flatMap(c =>
+      const breakdown = Object.values(activeCategories).flatMap(c =>
         c.habits.filter(h => habits[h.id]).map(h => ({ label: h.label, xp: h.xp, cat: c.label, color: c.color }))
       );
       setXpBreakdown(breakdown);
 
-      // Milestone toasts
       if (r.levelUp) {
         setConfetti(true);
         toast(`🎖️ Level Up! You're now Level ${r.newLevel}`, "levelup", 5000);
@@ -100,6 +100,17 @@ export default function Dashboard() {
     await refreshProfile();
     setShowExcuse(false);
     toast(`Excuse set: ${ex.label} (${ex.days}d). Streak protected ✅`, "success");
+  }
+
+  async function handleSaveCustomHabits(cats) {
+    await saveCustomHabits(user.uid, cats);
+    await refreshProfile();
+    toast("Habits updated ✅", "success");
+  }
+
+  async function handleSaveCustomExcuses(excs) {
+    await saveCustomExcuses(user.uid, excs);
+    await refreshProfile();
   }
 
   const greeting = () => {
@@ -140,7 +151,7 @@ export default function Dashboard() {
           </div>
           <div className="ring-label">Overall</div>
         </div>
-        {Object.entries(HABIT_CATEGORIES).map(([k, cat]) => (
+        {Object.entries(activeCategories).map(([k, cat]) => (
           <div key={k} className="ring-card">
             <div className="ring-wrap">
               <CompletionRing pct={catPct(cat)} size={76} stroke={7} color={cat.color}/>
@@ -181,29 +192,56 @@ export default function Dashboard() {
       {/* Habit grid */}
       {!checkedIn && (
         <>
-          <div className="habits-grid">
-            {Object.entries(HABIT_CATEGORIES).map(([k, cat]) => (
-              <div key={k} className="habit-card">
-                <div className="habit-card-header" style={{ borderColor: cat.color }}>
-                  <span>{cat.icon}</span>
-                  <span style={{ color:cat.color, fontWeight:700, fontSize:13, textTransform:"uppercase", letterSpacing:1 }}>{cat.label}</span>
-                  <div style={{ marginLeft:"auto", display:"flex", alignItems:"center", gap:8 }}>
-                    <div className="cat-mini-ring">
-                      <CompletionRing pct={catPct(cat)} size={22} stroke={3} color={cat.color}/>
-                    </div>
-                    <span style={{ fontSize:12, color:"#555" }}>{cat.habits.filter(h=>habits[h.id]).length}/{cat.habits.length}</span>
-                  </div>
-                </div>
-                {cat.habits.map(h => (
-                  <label key={h.id} className={`habit-row ${habits[h.id] ? "checked" : ""}`}>
-                    <input type="checkbox" checked={!!habits[h.id]} onChange={() => toggle(h.id)}/>
-                    <span className="habit-label">{h.label}</span>
-                    <span className="habit-xp">+{h.xp}</span>
-                  </label>
-                ))}
-              </div>
-            ))}
+          {/* Section header with customize button */}
+          <div className="habits-section-header">
+            <span className="habits-section-title">Today's Habits</span>
+            <button
+              className="btn-customize-habits"
+              onClick={() => setShowCustomizer(true)}
+              title="Add, edit, or remove habit categories and habits"
+            >
+              ✏️ Customize
+            </button>
           </div>
+
+          {total === 0 ? (
+            <div className="cust-empty-state">
+              <div style={{ fontSize: 40, marginBottom: 12 }}>📋</div>
+              <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 6 }}>No habits set up yet</div>
+              <div style={{ fontSize: 13, color: "#555", marginBottom: 16 }}>Add your own habits and categories to start tracking</div>
+              <button className="btn-primary" onClick={() => setShowCustomizer(true)} style={{ width: "auto", padding: "10px 24px" }}>
+                + Set Up My Habits
+              </button>
+            </div>
+          ) : (
+            <div className="habits-grid">
+              {Object.entries(activeCategories).map(([k, cat]) => (
+                <div key={k} className="habit-card">
+                  <div className="habit-card-header" style={{ borderColor: cat.color }}>
+                    <span>{cat.icon}</span>
+                    <span style={{ color:cat.color, fontWeight:700, fontSize:13, textTransform:"uppercase", letterSpacing:1 }}>{cat.label}</span>
+                    <div style={{ marginLeft:"auto", display:"flex", alignItems:"center", gap:8 }}>
+                      <div className="cat-mini-ring">
+                        <CompletionRing pct={catPct(cat)} size={22} stroke={3} color={cat.color}/>
+                      </div>
+                      <span style={{ fontSize:12, color:"#555" }}>{cat.habits.filter(h=>habits[h.id]).length}/{cat.habits.length}</span>
+                    </div>
+                  </div>
+                  {cat.habits.length === 0 ? (
+                    <div style={{ padding: "10px 12px", fontSize: 12, color: "#444", fontStyle: "italic" }}>
+                      No habits — click ✏️ Customize to add some
+                    </div>
+                  ) : cat.habits.map(h => (
+                    <label key={h.id} className={`habit-row ${habits[h.id] ? "checked" : ""}`}>
+                      <input type="checkbox" checked={!!habits[h.id]} onChange={() => toggle(h.id)}/>
+                      <span className="habit-label">{h.label}</span>
+                      <span className="habit-xp">+{h.xp}</span>
+                    </label>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
 
           <div className="checkin-bar">
             <div className="checkin-summary">
@@ -230,17 +268,33 @@ export default function Dashboard() {
             <h3>Set an Excuse</h3>
             <p>Your streak stays protected for the duration.</p>
             <div className="excuse-grid">
-              {EXCUSES.map(ex => (
+              {activeExcuses.map(ex => (
                 <button key={ex.id} className="excuse-card" onClick={() => handleExcuse(ex)}>
                   <span style={{ fontSize:28 }}>{ex.icon}</span>
                   <span style={{ fontSize:13, fontWeight:600 }}>{ex.label}</span>
                   <span style={{ fontSize:11, color:"#666" }}>{ex.days} day{ex.days>1?"s":""}</span>
                 </button>
               ))}
+              {activeExcuses.length === 0 && (
+                <div style={{ gridColumn:"1/-1", color:"#555", fontSize:13, padding:12 }}>
+                  No excuses set up. <button className="link-btn" onClick={() => { setShowExcuse(false); setShowCustomizer(true); }}>Add some →</button>
+                </div>
+              )}
             </div>
             <button className="btn-secondary" onClick={() => setShowExcuse(false)}>Cancel</button>
           </div>
         </div>
+      )}
+
+      {/* Habit customizer modal */}
+      {showCustomizer && (
+        <HabitCustomizer
+          categories={activeCategories}
+          excuses={activeExcuses}
+          onSaveCategories={handleSaveCustomHabits}
+          onSaveExcuses={handleSaveCustomExcuses}
+          onClose={() => setShowCustomizer(false)}
+        />
       )}
     </div>
   );

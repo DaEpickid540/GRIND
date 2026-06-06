@@ -111,6 +111,14 @@ export const getGymRecords = async (uid, limitN = 500) => {
 
 export const deleteGymRecord = (uid, recordId) =>
   deleteDoc(doc(db, "users", uid, "gymRecords", recordId));
+// ── Custom habits / excuses (user-specific, overrides defaults in gameData.js) ─
+export const saveCustomHabits  = (uid, categories) =>
+  updateDoc(doc(db,"users",uid), { customHabits: categories });
+
+// Pass null to clear and revert to defaults
+export const saveCustomExcuses = (uid, excuses) =>
+  updateDoc(doc(db,"users",uid), { customExcuses: excuses });
+
 export const saveWeeklyPlan = (uid, plan) => updateDoc(doc(db,"users",uid), { weeklyPlan: plan, planTasksDone: {} });
 export const togglePlanTask = (uid, key, current) => updateDoc(doc(db,"users",uid), { [`planTasksDone.${key}`]: !current });
 

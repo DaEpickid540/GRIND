@@ -1,65 +1,48 @@
 // src/data/gameData.js
+// These are generic starter defaults. Users can fully customize via the
+// Customize Habits button on the dashboard — changes are saved to Firestore.
 
 export const HABIT_CATEGORIES = {
   fitness: {
     label: "Fitness",
-    icon: "🏋️",
+    icon: "💪",
     color: "#FF4D4D",
     habits: [
-      { id: "workout",       label: "Worked out today",           xp: 15 },
-      { id: "cardio",        label: "Did cardio (run/bike/swim)",  xp: 10 },
-      { id: "stretch",       label: "Stretched / mobility work",  xp:  5 },
-      { id: "sport_practice",label: "Sport practice / team drill", xp: 15 },
-      { id: "steps",         label: "Hit 8k+ steps",              xp:  8 },
+      { id: "exercised",  label: "Worked out / exercised",        xp: 15 },
+      { id: "steps",      label: "Hit daily movement goal",       xp:  8 },
+      { id: "stretch",    label: "Stretched / mobility work",     xp:  5 },
     ],
   },
-  selfcare: {
-    label: "Self Care",
-    icon: "🚿",
+  health: {
+    label: "Health",
+    icon: "🥗",
     color: "#4DC9FF",
     habits: [
-      { id: "shower",   label: "Showered",               xp:  5 },
-      { id: "teeth",    label: "Brushed teeth (×2)",      xp:  5 },
-      { id: "skincare", label: "Did skincare routine",    xp:  5 },
-      { id: "sleep8",   label: "Slept 8+ hours",          xp: 10 },
-      { id: "ate_well", label: "Ate clean / tracked macros", xp: 10 },
-      { id: "water",    label: "Drank 8+ glasses of water", xp:  5 },
-      { id: "groomed",  label: "Hair / grooming on point", xp:  5 },
+      { id: "ate_well",   label: "Ate well / clean nutrition",    xp: 10 },
+      { id: "sleep",      label: "Got enough sleep (7–9 hrs)",    xp: 10 },
+      { id: "water",      label: "Drank enough water",            xp:  5 },
+      { id: "hygiene",    label: "Hygiene routine done",          xp:  5 },
     ],
   },
-  school: {
-    label: "School",
-    icon: "📚",
+  productivity: {
+    label: "Productivity",
+    icon: "📋",
     color: "#FFD700",
     habits: [
-      { id: "homework",   label: "Finished all homework",       xp: 15 },
-      { id: "studied",    label: "Studied 30+ min",             xp: 10 },
-      { id: "no_phone",   label: "No phone during class",       xp: 10 },
-      { id: "organized",  label: "Organized notes/backpack",    xp:  5 },
-      { id: "participated", label: "Participated in class",     xp:  8 },
+      { id: "deep_work",   label: "Did focused deep work",        xp: 15 },
+      { id: "tasks_done",  label: "Completed main tasks",         xp: 10 },
+      { id: "organized",   label: "Stayed organized / planned",   xp:  5 },
     ],
   },
-  coding: {
-    label: "Coding",
-    icon: "💻",
-    color: "#00FF88",
-    habits: [
-      { id: "coded",     label: "Coded / built something",      xp: 15 },
-      { id: "course",    label: "Did Udemy / course lesson",    xp: 10 },
-      { id: "committed", label: "Pushed a commit to GitHub",    xp: 10 },
-      { id: "read_docs", label: "Read docs / learned a concept", xp:  8 },
-    ],
-  },
-  social: {
-    label: "Social",
+  mindset: {
+    label: "Mindset",
     icon: "🧠",
     color: "#FF88FF",
     habits: [
-      { id: "looked_good",    label: "Put effort into your fit",          xp: 10 },
-      { id: "real_convo",     label: "Had a real conversation IRL",       xp: 10 },
-      { id: "no_doom",        label: "Avoided doom scrolling (1hr+ free)", xp: 10 },
-      { id: "comfort_zone",   label: "Did something outside comfort zone", xp: 15 },
-      { id: "positive_self",  label: "Practiced positive self-talk",       xp:  8 },
+      { id: "no_doom",      label: "No doom scrolling (1hr+ free)", xp: 10 },
+      { id: "positive",     label: "Practiced positive self-talk",  xp:  8 },
+      { id: "comfort_zone", label: "Did something challenging",     xp: 15 },
+      { id: "outside",      label: "Went outside / got fresh air",  xp:  5 },
     ],
   },
 };
@@ -67,14 +50,13 @@ export const HABIT_CATEGORIES = {
 export const ALL_HABITS = Object.values(HABIT_CATEGORIES).flatMap(c => c.habits);
 
 export const EXCUSES = [
-  { id: "camping",    label: "Camping / Outdoors",     icon: "⛺", days: 3 },
-  { id: "vacation",   label: "Vacation / Travel",      icon: "✈️", days: 7 },
-  { id: "sick",       label: "Sick Day",               icon: "🤒", days: 2 },
-  { id: "family",     label: "Family Emergency",       icon: "🏠", days: 2 },
-  { id: "daytrip",    label: "Day Trip",               icon: "🚗", days: 1 },
-  { id: "scouts",     label: "Scouts / OA Event",      icon: "🏕️", days: 3 },
-  { id: "tournament", label: "Sports Tournament",      icon: "🏆", days: 2 },
-  { id: "exam",       label: "Exam Week",              icon: "📝", days: 5 },
+  { id: "sick",      label: "Sick Day",         icon: "🤒", days: 2 },
+  { id: "travel",    label: "Traveling",         icon: "✈️", days: 3 },
+  { id: "vacation",  label: "Vacation",          icon: "🏖️", days: 7 },
+  { id: "family",    label: "Family Event",      icon: "🏠", days: 2 },
+  { id: "emergency", label: "Emergency",         icon: "🚨", days: 2 },
+  { id: "event",     label: "Special Event",     icon: "🎉", days: 1 },
+  { id: "rest_day",  label: "Rest / Recovery",   icon: "🛌", days: 1 },
 ];
 
 export const LEVELS = [
