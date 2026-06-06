@@ -86,6 +86,45 @@ export async function submitCheckIn(uid, habits, todayStr, habitCategories) {
   return { xpGained, streakBonus, newStreak, newLevel, newXP, levelUp, prevLevel: profile.level||1 };
 }
 
+// Fetch a single day's check-in doc (used for re-check-in pre-population)
+export const getTodayCheckIn = async (uid, dateStr) => {
+  const snap = await getDoc(doc(db, "users", uid, "checkins", dateStr));
+  return snap.exists() ? snap.data() : null;
+};
+
+// Add XP only for habits checked AFTER the initial daily submission
+export async function updateCheckIn(uid, allHabits, previousHabits, todayStr, habitCategories) {
+  const newlyChecked = Object.keys(allHabits).filter(id => allHabits[id] && !previousHabits[id]);
+  if (newlyChecked.length === 0) return { xpGained: 0, noChange: true };
+
+  let xpGained = 0;
+  const allHabitDefs = Object.values(habitCategories).flatMap(c => c.habits);
+  allHabitDefs.forEach(h => { if (newlyChecked.includes(h.id)) xpGained += h.xp; });
+
+  const [profile, checkinSnap] = await Promise.all([
+    getUserProfile(uid),
+    getDoc(doc(db, "users", uid, "checkins", todayStr)),
+  ]);
+
+  const prevXPGained = checkinSnap.exists() ? (checkinSnap.data().xpGained || 0) : 0;
+  const newXP    = (profile.xp || 0) + xpGained;
+  const newLevel = Math.floor(Math.sqrt(newXP / 100)) + 1;
+  const levelUp  = newLevel > (profile.level || 1);
+
+  await Promise.all([
+    updateDoc(doc(db, "users", uid), { xp: newXP, level: newLevel }),
+    updateDoc(doc(db, "users", uid, "checkins", todayStr), {
+      habits: allHabits,
+      xpGained: prevXPGained + xpGained,
+      lastUpdated: serverTimestamp(),
+    }),
+  ]);
+
+  syncMemberProgress(uid, { xp: newXP, streak: profile.streak || 0, lastCheckIn: todayStr }).catch(() => {});
+
+  return { xpGained, newXP, newLevel, levelUp, noChange: false, prevLevel: profile.level || 1 };
+}
+
 export const setExcuse   = async (uid, reason, days=1) => {
   const until = new Date(); until.setDate(until.getDate()+days);
   await updateDoc(doc(db,"users",uid), { excuseActive: { reason, until: until.toISOString().split("T")[0] } });

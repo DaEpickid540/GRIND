@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { getSettings, saveSettings, DEFAULT_SETTINGS } from "../lib/userSettings";
-import { PROVIDERS, getAIConfig, saveAIConfig, clearAIConfig, testKey } from "../lib/aiProvider";
+import { PROVIDERS, MODEL_INFO, getModelInfo, getAIConfig, saveAIConfig, clearAIConfig, testKey } from "../lib/aiProvider";
 import { HABIT_CATEGORIES } from "../data/gameData";
 import { useAuth } from "../hooks/useAuth";
 import { logout, updateUserProfile, getCheckinHistory, uploadProfilePhoto, enablePushNotifications, updateReminderPrefs } from "../lib/firebase";
@@ -226,11 +226,38 @@ export default function SettingsModal({ onClose, onResetKey }) {
 
                 <div className="srow">
                   <label className="slabel">Model</label>
-                  <a href={prov.url} target="_blank" rel="noopener noreferrer" className="slink">Get free key →</a>
+                  <a href={prov.url} target="_blank" rel="noopener noreferrer" className="slink">
+                    {prov.freeKey ? "Get free key →" : "Get API key →"}
+                  </a>
                 </div>
                 <select className="sinp" value={aiModel} onChange={e=>{setAiModel(e.target.value);setVerified(false);}}>
-                  {prov.models.map(m=><option key={m}>{m}</option>)}
+                  {prov.models.map(m => {
+                    const info = getModelInfo(m);
+                    const visionTag = info.vision ? " · 👁 vision" : " · text only";
+                    const tierTag   = info.tier === "best" ? " ★" : info.tier === "fastest" ? " ⚡" : "";
+                    return <option key={m} value={m}>{info.label}{visionTag}{tierTag}</option>;
+                  })}
                 </select>
+
+                {/* Vision capability warning */}
+                {getModelInfo(aiModel).vision === false && (
+                  <div className="model-vision-warn">
+                    📷 <strong>No vision support</strong> — AI Scans, Calorie Counter, and Outfit Analyzer
+                    won't work with this model. Pick a <em>👁 vision</em> model above to use those features.
+                  </div>
+                )}
+                {getModelInfo(aiModel).tier === "fastest" && (
+                  <div className="model-tier-note">
+                    ⚡ Small/fast model — may be less accurate for calorie estimates and detailed outfit analysis.
+                    A ★ model gives better results for visual tasks.
+                  </div>
+                )}
+                {getModelInfo(aiModel).vision === true && getModelInfo(aiModel).tier === "fast" && (
+                  <div className="model-tier-note model-tier-ok">
+                    👁 Vision supported — AI Scans will work. For highest accuracy on nutrition &amp; outfits,
+                    a ★ model is recommended.
+                  </div>
+                )}
 
                 <label className="slabel" style={{ marginTop:14 }}>API Key</label>
                 <div className="key-wrap">
@@ -240,14 +267,17 @@ export default function SettingsModal({ onClose, onResetKey }) {
                     onPaste={e=>{e.preventDefault();setAiKey(e.clipboardData.getData("text").trim());setVerified(false);setKeyError("");}}/>
                   <button className="key-vis" onClick={()=>setShowKey(s=>!s)}>{showKey?"🙈":"👁️"}</button>
                 </div>
+                {prov.keyHint && <div className="key-hint">{prov.keyHint}</div>}
                 {keyError && <div className="serr">{keyError}</div>}
                 {verified && <div className="sok">✅ Key verified and working</div>}
 
                 <div className="sprov-note">
-                  {aiProvider==="anthropic"  && "Best quality for all features incl. vision. Paid only — check console.anthropic.com for credits."}
-                  {aiProvider==="gemini"     && "Free tier: 15 req/min. Gemini Flash recommended. Vision fully supported."}
-                  {aiProvider==="groq"       && "Blazing fast, very generous free tier. Vision limited to certain models only."}
-                  {aiProvider==="openrouter" && "100+ models behind one key. Many free options. Vision depends on chosen model."}
+                  {aiProvider==="anthropic"  && "Best quality for all features incl. vision. Paid only — no free tier."}
+                  {aiProvider==="gemini"     && "Free tier available (15 req/min). All Gemini models support vision."}
+                  {aiProvider==="openai"     && "Pay-per-use. GPT-4o and GPT-4o Mini both support vision."}
+                  {aiProvider==="groq"       && "Very generous free tier. Vision only on Llama 3.2 11B Vision model."}
+                  {aiProvider==="openrouter" && "100+ models, many free options. Vision depends on chosen model."}
+                  {aiProvider==="cloudflare" && "Free tier via Workers AI. Enter Account ID and API Token separated by |."}
                 </div>
 
                 <div className="sbtn-row">
