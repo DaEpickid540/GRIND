@@ -91,7 +91,26 @@ export const setExcuse   = async (uid, reason, days=1) => {
   await updateDoc(doc(db,"users",uid), { excuseActive: { reason, until: until.toISOString().split("T")[0] } });
 };
 export const clearExcuse = (uid) => updateDoc(doc(db,"users",uid), { excuseActive: null });
-export const addGymRecord = (uid, record) => updateDoc(doc(db,"users",uid), { gymRecords: arrayUnion({...record, id:Date.now()}) });
+// GymRecords now live in a subcollection (users/{uid}/gymRecords/{docId}) instead of
+// an array on the user document. Arrays hit Firestore's 1MB doc limit with heavy use.
+export const addGymRecord = (uid, record) =>
+  setDoc(doc(collection(db, "users", uid, "gymRecords")), {
+    ...record,
+    createdAt: serverTimestamp(),
+  });
+
+export const getGymRecords = async (uid, limitN = 500) => {
+  const q = query(
+    collection(db, "users", uid, "gymRecords"),
+    orderBy("createdAt", "desc"),
+    limit(limitN)
+  );
+  const s = await getDocs(q);
+  return s.docs.map(d => ({ id: d.id, ...d.data() }));
+};
+
+export const deleteGymRecord = (uid, recordId) =>
+  deleteDoc(doc(db, "users", uid, "gymRecords", recordId));
 export const saveWeeklyPlan = (uid, plan) => updateDoc(doc(db,"users",uid), { weeklyPlan: plan, planTasksDone: {} });
 export const togglePlanTask = (uid, key, current) => updateDoc(doc(db,"users",uid), { [`planTasksDone.${key}`]: !current });
 
@@ -338,9 +357,10 @@ export const updateOnboarding = (uid, patch) =>
 
 function genJoinCode() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no I/O/0/1 ambiguity
-  let code = "";
-  for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
-  return code;
+  // Use crypto.getRandomValues instead of Math.random (not cryptographically safe)
+  const bytes = new Uint8Array(6);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes).map(b => chars[b % chars.length]).join("");
 }
 
 export const setUserRole = (uid, role) =>
@@ -369,8 +389,17 @@ export const joinClassByCode = async (uid, displayName, photoURL, code) => {
   const classDoc = snap.docs[0];
   const classData = classDoc.data();
 
+  // Guard: don't double-add — memberCount would become wrong
+  const memberRef = doc(db,"classes",classDoc.id,"members",uid);
+  const memberSnap = await getDoc(memberRef);
+  if (memberSnap.exists()) {
+    // Already a member — just make sure user doc is in sync
+    await updateDoc(doc(db,"users",uid), { studentClasses: arrayUnion(classDoc.id) });
+    return { id: classDoc.id, name: classData.name, teacherName: classData.teacherName };
+  }
+
   // Add member doc
-  await setDoc(doc(db,"classes",classDoc.id,"members",uid), {
+  await setDoc(memberRef, {
     uid, displayName, photoURL: photoURL||null,
     joinedAt: serverTimestamp(),
     currentXP: 0, currentStreak: 0, lastCheckIn: null,

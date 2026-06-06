@@ -19,7 +19,7 @@ const NAV = [
   { id:"tutorial",    icon:"📖", label:"Setup Guide"  },
 ];
 
-export default function Sidebar({ page, setPage, onOpenSettings }) {
+export default function Sidebar({ page, setPage, onOpenSettings, isOpen, onClose }) {
   const { user, profile } = useAuth();
   const li    = profile ? getLevelInfo(profile.xp||0) : null;
   const aiCfg = getAIConfig();
@@ -34,10 +34,11 @@ export default function Sidebar({ page, setPage, onOpenSettings }) {
   })();
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar${isOpen ? " open" : ""}`}>
       <div className="sidebar-logo">
         <span className="logo-bolt">⚡</span>
         <span className="logo-text">GRIND</span>
+        <button className="sidebar-close-btn" onClick={onClose} aria-label="Close menu">✕</button>
       </div>
 
       {user && (

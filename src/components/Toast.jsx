@@ -21,10 +21,11 @@ export function ToastProvider({ children }) {
   return (
     <ToastCtx.Provider value={toast}>
       {children}
-      <div className="toast-container">
+      <div className="toast-container" role="status" aria-live="polite" aria-atomic="true">
         {toasts.map(t => (
-          <div key={t.id} className="toast" style={{ borderColor: colors[t.type]||colors.info }}>
-            <span>{icons[t.type]||icons.info}</span>
+          <div key={t.id} className="toast" style={{ borderColor: colors[t.type]||colors.info }}
+            role={t.type === "error" || t.type === "warning" ? "alert" : undefined}>
+            <span aria-hidden="true">{icons[t.type]||icons.info}</span>
             <span>{t.msg}</span>
           </div>
         ))}

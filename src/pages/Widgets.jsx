@@ -1,6 +1,6 @@
 import { useAuth } from "../hooks/useAuth";
 import { getLevelInfo, HABIT_CATEGORIES } from "../data/gameData";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 // Mini widget preview components
 function StreakWidget({ streak, level, levelTitle, accentColor="#FFD700" }) {
@@ -78,13 +78,12 @@ export default function Widgets() {
   const [installed, setInstalled] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState(null);
 
-  // Listen for PWA install prompt
-  useState(() => {
-    window.addEventListener("beforeinstallprompt", e => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-    });
+  // Listen for PWA install prompt — must be useEffect, not useState
+  useEffect(() => {
+    const handler = e => { e.preventDefault(); setDeferredPrompt(e); };
+    window.addEventListener("beforeinstallprompt", handler);
     if (window.matchMedia("(display-mode: standalone)").matches) setInstalled(true);
+    return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);
 
   async function installPWA() {

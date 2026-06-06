@@ -61,7 +61,7 @@ export default function Breathing() {
             setRunning(false);
             setPhase("done");
             setCounter(0);
-            toast("🎉 Breathing session complete! +5 XP", "success");
+            toast("🎉 Breathing session complete!", "success");
             return;
           }
           // Reset to first valid phase

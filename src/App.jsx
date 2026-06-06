@@ -51,12 +51,22 @@ function AppInner() {
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [showSettings,    setShowSettings]    = useState(false);
   const [publicUID,       setPublicUID]       = useState(null);
+  const [sidebarOpen,     setSidebarOpen]     = useState(false);
 
   useEffect(() => {
     if (user) {
       setNeedsKey(!hasValidKey());
       applySettings(getSettings());
-      hasCompletedOnboarding(user.uid).then(done => setNeedsOnboarding(!done));
+      // Cache onboarding result in localStorage to avoid a Firestore read on every load
+      const cached = localStorage.getItem("grind_onboarded");
+      if (cached) {
+        setNeedsOnboarding(false);
+      } else {
+        hasCompletedOnboarding(user.uid).then(done => {
+          if (done) localStorage.setItem("grind_onboarded", "1");
+          setNeedsOnboarding(!done);
+        });
+      }
       initReminders();
     }
     const params = new URLSearchParams(window.location.search);
@@ -76,11 +86,17 @@ function AppInner() {
   if (user===undefined) return <div className="splash"><div className="splash-bolt">⚡</div><div className="splash-word">GRIND</div></div>;
   if (!user) return <Login/>;
 
+  const navTo = (p) => { setPage(p); setSidebarOpen(false); };
+  const openSettings = () => { setShowSettings(true); setSidebarOpen(false); };
+
   // Public profile overlay
   if (publicUID) return (
     <div className="app-shell">
-      <Sidebar page={page} setPage={setPage} onOpenSettings={() => setShowSettings(true)}/>
+      <Sidebar page={page} setPage={navTo} onOpenSettings={openSettings}
+               isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)}/>
+      {sidebarOpen && <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)}/>}
       <main className="main-area">
+        <button className="hamburger" onClick={() => setSidebarOpen(true)} aria-label="Open menu">☰</button>
         <Suspense fallback={<PageLoader/>}>
           <PublicProfile uid={publicUID} onBack={() => setPublicUID(null)}/>
         </Suspense>
@@ -91,12 +107,15 @@ function AppInner() {
   return (
     <div className="app-shell">
       <Suspense fallback={null}>
-        {needsKey && <APIKeyModal onDone={() => setNeedsKey(false)} onShowTutorial={() => { setNeedsKey(false); setPage("tutorial"); }}/>}
-        {!needsKey && needsOnboarding && <OnboardingModal onDone={() => setNeedsOnboarding(false)}/>}
+        {needsKey && <APIKeyModal onDone={() => setNeedsKey(false)} onShowTutorial={() => { setNeedsKey(false); navTo("tutorial"); }}/>}
+        {!needsKey && needsOnboarding && <OnboardingModal onDone={() => { setNeedsOnboarding(false); localStorage.setItem("grind_onboarded","1"); }}/>}
         {showSettings && <SettingsModal onClose={() => setShowSettings(false)} onResetKey={() => { setShowSettings(false); setNeedsKey(true); }}/>}
       </Suspense>
-      <Sidebar page={page} setPage={setPage} onOpenSettings={() => setShowSettings(true)}/>
+      <Sidebar page={page} setPage={navTo} onOpenSettings={openSettings}
+               isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)}/>
+      {sidebarOpen && <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)}/>}
       <main className="main-area">
+        <button className="hamburger" onClick={() => setSidebarOpen(true)} aria-label="Open menu">☰</button>
         <Suspense fallback={<PageLoader/>}>
           {page==="dashboard"   && <Dashboard/>}
           {page==="plan"        && <WeeklyPlan/>}
@@ -110,7 +129,7 @@ function AppInner() {
           {page==="classes"     && <Classes/>}
           {page==="widgets"     && <Widgets/>}
           {page==="tutorial"    && <Tutorial/>}
-          {page==="stats"       && <Stats onViewProfile={uid => setPublicUID(uid)}/>}
+          {page==="stats"       && <Stats/>}
         </Suspense>
       </main>
     </div>

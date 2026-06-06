@@ -5,6 +5,13 @@ import { useAuth } from "../hooks/useAuth";
 import { saveScanResult, getScanHistory } from "../lib/firebase";
 import { buildSystemPrompt } from "../lib/coachVoice";
 
+function parseAIJson(text) {
+  const stripped = text.replace(/```json|```/g, "").trim();
+  const match = stripped.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error("No JSON object found in AI response");
+  return JSON.parse(match[0]);
+}
+
 const SCAN_TYPES = [
   { id:"outfit",   feature:"outfit",   label:"Outfit Rating",    icon:"👔", desc:"AI rates your style, fit, and color coordination" },
   { id:"physique", feature:"physique", label:"Physique Scan",    icon:"💪", desc:"Body composition analysis and training tips" },
@@ -32,6 +39,7 @@ export default function AIScans() {
 
   function handleFile(e) {
     const file = e.target.files[0]; if (!file) return;
+    if (file.size > 8 * 1024 * 1024) { toast("Image too large (max 8MB)", "warning"); return; }
     const reader = new FileReader();
     reader.onload = ev => { setPreview(ev.target.result); setImage(file); setResult(null); };
     reader.readAsDataURL(file);
@@ -44,7 +52,7 @@ export default function AIScans() {
       const b64  = preview.split(",")[1];
       const system = await buildSystemPrompt(active.feature, user?.uid, null);
       const text = await callAI({ system, userMessage:`Run a ${active.label}.`, imageBase64:b64, imageMime:image.type||"image/jpeg", maxTokens:800 });
-      const parsed = JSON.parse(text.replace(/```json|```/g,"").trim());
+      const parsed = parseAIJson(text);
       setResult(parsed);
       if (user) {
         await saveScanResult(user.uid, active.id, parsed);

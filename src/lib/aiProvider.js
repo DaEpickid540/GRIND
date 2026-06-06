@@ -166,12 +166,16 @@ export async function callAI({ system, userMessage, imageBase64, imageMime, maxT
 
 // ── Test key ───────────────────────────────────────────────────────────────
 export async function testKey(provider, key, model) {
-  const tmpCfg = { provider, key, model };
-  saveAIConfig(tmpCfg); // temporarily set so callAI picks it up
+  const prev = getAIConfig(); // save BEFORE overwriting — restore regardless of outcome
+  saveAIConfig({ provider, key, model });
   try {
     const result = await callAI({ system:"You are a test.", userMessage:"Reply with exactly: OK", maxTokens:10 });
     return result.trim().includes("OK") || result.trim().length > 0;
   } catch(e) {
     throw e;
+  } finally {
+    // Always restore the original config so a failed test never destroys a working key
+    if (prev) saveAIConfig(prev);
+    else clearAIConfig();
   }
 }

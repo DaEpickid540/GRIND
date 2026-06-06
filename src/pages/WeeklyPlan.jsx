@@ -5,6 +5,14 @@ import { useToast } from "../components/Toast";
 import { callAI } from "../lib/aiProvider";
 import { buildSystemPrompt } from "../lib/coachVoice";
 
+// Robust JSON extractor — handles markdown fences, preamble text, trailing commentary
+function parseAIJson(text) {
+  const stripped = text.replace(/```json|```/g, "").trim();
+  const match = stripped.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error("No JSON object found in AI response");
+  return JSON.parse(match[0]);
+}
+
 const SLOTS = ["Morning","Afternoon","Evening"];
 const DAYS  = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 const SLOT_ICONS  = { Morning:"☀️", Afternoon:"🌤️", Evening:"🌙" };
@@ -32,7 +40,7 @@ export default function WeeklyPlan() {
         maxTokens: 2000,
       });
 
-      const parsed = JSON.parse(text.replace(/```json|```/g,"").trim());
+      const parsed = parseAIJson(text);
       setPlan(parsed);
       setTasksDone({});
       await saveWeeklyPlan(user.uid, parsed);

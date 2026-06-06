@@ -1,18 +1,26 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "../hooks/useAuth";
-import { addGymRecord } from "../lib/firebase";
+import { addGymRecord, getGymRecords, deleteGymRecord } from "../lib/firebase";
+import { useToast } from "../components/Toast";
 
 const PRESETS = ["Bench Press","Squat","Deadlift","Overhead Press","Pull-ups","Barbell Row","Dips","Bicep Curl","Tricep Pushdown","Leg Press","Romanian Deadlift","Hip Thrust","Incline Press","Lat Pulldown","Cable Fly","Run (miles)","Custom…"];
 
 export default function GymRecords() {
-  const { user, profile, refreshProfile } = useAuth();
+  const { user } = useAuth();
+  const toast = useToast();
+  const [records, setRecords] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [form, setForm]     = useState({ exercise:"", weight:"", reps:"", sets:"", notes:"", date:new Date().toISOString().split("T")[0] });
   const [customEx, setCustomEx] = useState("");
   const [saving, setSaving] = useState(false);
   const [filter, setFilter] = useState("All");
   const [tab, setTab]       = useState("log"); // log | history | prs
 
-  const records = [...(profile?.gymRecords||[])].sort((a,b)=>new Date(b.date)-new Date(a.date));
+  // Load records from subcollection
+  useEffect(() => {
+    if (!user) return;
+    getGymRecords(user.uid).then(r => { setRecords(r); setLoading(false); });
+  }, [user]);
 
   // PR per exercise (best weight × reps via Epley 1RM)
   const prs = {};
@@ -29,10 +37,23 @@ export default function GymRecords() {
     const ex = form.exercise==="Custom…" ? customEx : form.exercise;
     if (!ex||!form.weight||!form.reps) return;
     setSaving(true);
-    await addGymRecord(user.uid,{ exercise:ex, weight:+form.weight, reps:+form.reps, sets:+form.sets||1, notes:form.notes, date:form.date });
-    await refreshProfile();
-    setForm(f=>({...f,exercise:"",weight:"",reps:"",sets:"",notes:""}));
-    setSaving(false);
+    try {
+      await addGymRecord(user.uid,{ exercise:ex, weight:+form.weight, reps:+form.reps, sets:+form.sets||1, notes:form.notes, date:form.date });
+      const updated = await getGymRecords(user.uid);
+      setRecords(updated);
+      setForm(f=>({...f,exercise:"",weight:"",reps:"",sets:"",notes:""}));
+      toast("Set logged! 💪", "success", 2000);
+    } catch(e) { toast("Failed to save", "error"); }
+    finally { setSaving(false); }
+  }
+
+  async function handleDelete(record) {
+    if (!confirm(`Delete this ${record.exercise} record?`)) return;
+    try {
+      await deleteGymRecord(user.uid, record.id);
+      setRecords(r => r.filter(x => x.id !== record.id));
+      toast("Record deleted", "info", 2000);
+    } catch(e) { toast("Delete failed", "error"); }
   }
 
   return (
@@ -93,20 +114,22 @@ export default function GymRecords() {
               {exercises.map(e=><option key={e}>{e}</option>)}
             </select>
           </div>
+          {loading && <div className="loading-card"><div className="spinner"/></div>}
           <div className="record-table">
-            <div className="record-thead">
-              <span>Date</span><span>Exercise</span><span>Weight</span><span>Reps×Sets</span><span>Notes</span>
+            <div className="record-thead" style={{gridTemplateColumns:"100px 1fr 100px 80px 1fr 36px"}}>
+              <span>Date</span><span>Exercise</span><span>Weight</span><span>Reps×Sets</span><span>Notes</span><span></span>
             </div>
             {filtered.map(r=>(
-              <div key={r.id} className="record-row">
+              <div key={r.id} className="record-row" style={{gridTemplateColumns:"100px 1fr 100px 80px 1fr 36px"}}>
                 <span style={{color:"#666",fontFamily:"monospace",fontSize:12}}>{r.date}</span>
                 <span style={{fontWeight:600}}>{r.exercise}</span>
                 <span style={{color:"#FFD700"}}>{r.weight} lbs</span>
                 <span style={{color:"#888"}}>{r.reps}×{r.sets}</span>
                 <span style={{color:"#555",fontSize:12}}>{r.notes}</span>
+                <button className="habit-remove" onClick={()=>handleDelete(r)} aria-label={`Delete ${r.exercise} record`} title="Delete">🗑</button>
               </div>
             ))}
-            {filtered.length===0 && <p className="empty">No records match.</p>}
+            {!loading && filtered.length===0 && <p className="empty">No records match.</p>}
           </div>
         </>
       )}

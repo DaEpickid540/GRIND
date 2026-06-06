@@ -148,6 +148,7 @@ html, body, #root { height: 100%; background: var(--bg); color: var(--text); fon
 .form-row { display:flex; gap:10px; margin-bottom:10px; }
 .inp { flex:1; background:var(--bg3); border:1px solid var(--border2); border-radius:8px; color:var(--text); padding:10px 14px; font-family:'Syne',sans-serif; font-size:14px; }
 .inp:focus { outline:none; border-color:var(--accent); }
+.inp:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .pr-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:12px; }
 .pr-card { background:var(--bg2); border:1px solid var(--border); border-radius:10px; padding:16px; }
 .pr-ex { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; margin-bottom:6px; }
@@ -1005,3 +1006,168 @@ body.no-animations *, body.no-animations *::before, body.no-animations *::after 
   padding: 4px 8px; transition: opacity .15s;
 }
 .apikey-tutorial-link:hover { opacity: .8; }
+
+/* ── ACCESSIBILITY ───────────────────────────────────────────────────────── */
+
+/* Global focus ring — keyboard users can always see where they are */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+/* Remove default outline since we replace it with :focus-visible */
+:focus:not(:focus-visible) { outline: none; }
+/* Inputs still show the accent border on focus (existing rule kept, now also :focus-visible safe) */
+.inp:focus-visible { border-color: var(--accent); }
+
+/* Improve muted text contrast: #666 gives ~3.5:1 on #080808, passing WCAG AA for large/bold text */
+:root { --muted: #777; }
+
+/* ── MOBILE SIDEBAR DRAWER ───────────────────────────────────────────────── */
+
+/* Hamburger button — hidden on desktop, shown on mobile */
+.hamburger {
+  display: none;
+  position: fixed;
+  top: 14px;
+  left: 14px;
+  z-index: 90;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  font-size: 18px;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  transition: background .15s;
+}
+.hamburger:hover { background: var(--bg3); }
+
+/* Overlay backdrop for mobile sidebar */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.7);
+  z-index: 99;
+  backdrop-filter: blur(2px);
+}
+
+/* Sidebar close button — hidden on desktop */
+.sidebar-close-btn {
+  display: none;
+  margin-left: auto;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: none;
+  border: 1px solid var(--border2);
+  color: var(--muted2);
+  cursor: pointer;
+  font-size: 13px;
+  align-items: center;
+  justify-content: center;
+  transition: background .15s, color .15s;
+}
+.sidebar-close-btn:hover { background: var(--bg4); color: var(--text); }
+
+/* ── MOBILE BREAKPOINT (≤ 768px) ─────────────────────────────────────────── */
+@media (max-width: 768px) {
+  /* Sidebar becomes a fixed drawer */
+  .sidebar {
+    position: fixed;
+    left: 0; top: 0; bottom: 0;
+    z-index: 100;
+    transform: translateX(-100%);
+    transition: transform 0.25s cubic-bezier(.4,0,.2,1);
+    box-shadow: 4px 0 24px rgba(0,0,0,.6);
+  }
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  /* Show close button inside sidebar */
+  .sidebar-close-btn { display: flex; }
+
+  /* Main area takes full width */
+  .main-area { margin-left: 0; }
+
+  /* Show hamburger */
+  .hamburger { display: flex; }
+
+  /* Show overlay when sidebar is open */
+  .sidebar-overlay { display: block; }
+
+  /* Check-in bar spans full width (not offset by sidebar) */
+  .checkin-bar {
+    left: 0 !important;
+    padding: 12px 16px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .checkin-btns { flex-wrap: wrap; }
+
+  /* Page content: less padding, full width */
+  .page-content { padding: 60px 16px 16px; max-width: 100%; }
+  .page-header { flex-wrap: wrap; gap: 12px; }
+
+  /* Login: single column */
+  .login-page { grid-template-columns: 1fr; }
+  .login-left { display: none; }
+  .login-right { min-height: 100vh; }
+  .login-card { width: 100%; max-width: 400px; padding: 40px 24px; }
+
+  /* Stats: 2-col stat cards instead of 4 */
+  .big-stats-row { grid-template-columns: repeat(2, 1fr); }
+  .charts-grid { grid-template-columns: 1fr; }
+  .levels-track { flex-wrap: wrap; gap: 12px; justify-content: center; }
+
+  /* Nutrition: single column */
+  .nutrition-layout { grid-template-columns: 1fr; }
+
+  /* AI Scans: single column */
+  .scan-layout { grid-template-columns: 1fr; }
+  .scan-lists { grid-template-columns: 1fr; }
+
+  /* Friends: single column add layout */
+  .add-friend-layout { grid-template-columns: 1fr; }
+
+  /* Skills: single column */
+  .skills-layout { grid-template-columns: 1fr; }
+  .skill-detail { position: static; }
+
+  /* Breathing: single column */
+  .breathing-layout { grid-template-columns: 1fr; }
+
+  /* Leaderboard table: hide level column */
+  .board-thead, .board-row {
+    grid-template-columns: 48px 1fr 80px 70px 90px;
+  }
+  /* Hide the level column (3rd) */
+  .board-thead span:nth-child(3),
+  .board-row > span:nth-child(3) { display: none; }
+
+  /* Habits grid: single column */
+  .habits-grid { grid-template-columns: 1fr; margin-bottom: 120px; }
+
+  /* Rings row: wrap and center */
+  .rings-row { justify-content: center; }
+
+  /* Settings modal: full screen */
+  .settings-modal { height: 100vh; max-width: 100%; border-radius: 0; }
+  .settings-body { flex-direction: column; }
+  .settings-tabs { width: 100%; flex-direction: row; overflow-x: auto; border-right: none; border-bottom: 1px solid var(--border); padding: 8px; flex-wrap: nowrap; }
+  .settings-tab { flex-shrink: 0; }
+  .stab-label { display: none; }
+
+  /* Toast: full width bottom */
+  .toast-container { left: 12px; right: 12px; bottom: 12px; }
+  .toast { min-width: 0; width: 100%; }
+
+  /* Modals: full width */
+  .modal { max-width: 100%; margin: 0; border-radius: 16px; }
+  .apikey-modal { max-width: 100%; border-radius: 16px; }
+  .apikey-providers { grid-template-columns: repeat(2, 1fr); }
+}

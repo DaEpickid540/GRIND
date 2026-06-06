@@ -5,6 +5,13 @@ import { useAuth } from "../hooks/useAuth";
 import { saveNutritionEntry, getNutritionLog } from "../lib/firebase";
 import { buildSystemPrompt } from "../lib/coachVoice";
 
+function parseAIJson(text) {
+  const stripped = text.replace(/```json|```/g, "").trim();
+  const match = stripped.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error("No JSON object found in AI response");
+  return JSON.parse(match[0]);
+}
+
 export default function Nutrition() {
   const toast = useToast();
   const { user } = useAuth();
@@ -27,6 +34,7 @@ export default function Nutrition() {
 
   function handleFile(e) {
     const file = e.target.files[0]; if (!file) return;
+    if (file.size > 8 * 1024 * 1024) { toast("Image too large (max 8MB)", "warning"); return; }
     const reader = new FileReader();
     reader.onload = ev => { setPreview(ev.target.result); setImage(file); setResult(null); };
     reader.readAsDataURL(file);
@@ -45,7 +53,7 @@ export default function Nutrition() {
         imageMime: image.type || "image/jpeg",
         maxTokens: 600,
       });
-      const parsed = JSON.parse(text.replace(/```json|```/g,"").trim());
+      const parsed = parseAIJson(text);
       setResult(parsed);
       const entry = { ...parsed, time:new Date().toLocaleTimeString(), date:today };
       setLog(l => [entry, ...l].slice(0,20));

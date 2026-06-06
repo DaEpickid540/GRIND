@@ -274,9 +274,9 @@ export default function Friends() {
             </div>
           )}
           {activeChallenges.length>0 && <h3 className="section-sub-title" style={{ marginBottom:12 }}>Active</h3>}
-          {activeChallenges.map(c => <ChallengeCard key={c.id} c={c} uid={user.uid} onAccept={()=>acceptChallenge(c.id)} onDecline={()=>declineChallenge(c.id)} toast={toast}/>)}
+          {activeChallenges.map(c => <ChallengeCard key={c.id} c={c} uid={user.uid} onAccept={()=>acceptChallenge(c.id)} onDecline={()=>declineChallenge(c.id)}/>)}
           {pastChallenges.length>0 && <h3 className="section-sub-title" style={{ margin:"24px 0 12px" }}>History</h3>}
-          {pastChallenges.map(c => <ChallengeCard key={c.id} c={c} uid={user.uid} past toast={toast}/>)}
+          {pastChallenges.map(c => <ChallengeCard key={c.id} c={c} uid={user.uid} past/>)}
         </div>
       )}
     </div>
@@ -306,7 +306,7 @@ function RequestCard({ req, onAccept, onDecline }) {
   );
 }
 
-function ChallengeCard({ c, uid, past, onAccept, onDecline, toast }) {
+function ChallengeCard({ c, uid, past, onAccept, onDecline }) {
   const incoming = c.to===uid;
   const opponent = c.from===uid ? c.toName : c.fromName;
   const myGain   = c.from===uid ? c.fromGain : c.toGain;
