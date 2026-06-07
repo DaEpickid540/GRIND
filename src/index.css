@@ -19,6 +19,85 @@
   --sidebar: 240px;
 }
 
+/* ── LIGHT THEME ── */
+/* Overrides the core palette vars — cascades automatically to ~90% of the UI
+   thanks to the heavy var(--bg/--text/--border/--muted) usage above. */
+[data-theme="light"] {
+  --bg:      #eef0f3;
+  --bg2:     #ffffff;
+  --bg3:     #f6f7f9;
+  --bg4:     #e9ebef;
+  --border:  #dde1e6;
+  --border2: #c8cdd4;
+  --text:    #181b20;
+  --muted:   #868d97;
+  --muted2:  #565c66;
+  /* Saturated accent shades darkened so they stay readable as text on light surfaces */
+  --red:     #D32F2F;
+  --blue:    #0277BD;
+  --green:   #1B8A4A;
+  --purple:  #8E24AA;
+  --orange:  #E8650E;
+}
+
+/* Targeted overrides for hardcoded near-black "tinted badge" backgrounds —
+   flips them to soft light tints of the same hue family so badges/banners
+   stay legible (rather than rendering as near-invisible dark-on-dark). */
+[data-theme="light"] .login-left,
+[data-theme="light"] .login-btn:hover,
+[data-theme="light"] .excuse-card:hover,
+[data-theme="light"] .excuse-day-btn.active,
+[data-theme="light"] .board-row.mine,
+[data-theme="light"] .habit-row.checked,
+[data-theme="light"] .sidebar-coins,
+[data-theme="light"] .sidebar-coins:hover,
+[data-theme="light"] .excuse-chip {
+  background: #fdf3d6 !important;
+}
+[data-theme="light"] .notif-note,
+[data-theme="light"] .data-card.danger ~ .notif-note { background: #f4f1e6; border-color:#d8d2b0; color:var(--muted2); }
+
+[data-theme="light"] .success-banner,
+[data-theme="light"] .nutrition-tip,
+[data-theme="light"] .task-check.checked,
+[data-theme="light"] .checkin-pill.done,
+[data-theme="light"] .service-status.active,
+[data-theme="light"] .cust-btn-sm.add:hover {
+  background: #e6f6ec !important;
+  border-color: #aedcc0 !important;
+}
+
+[data-theme="light"] .scan-tip,
+[data-theme="light"] .exercise-option.active {
+  background: #e6f2fb !important;
+  border-color: #aed2ef !important;
+}
+
+[data-theme="light"] .challenge-btn,
+[data-theme="light"] .challenge-btn:hover {
+  background: #f3e6f9 !important;
+}
+
+[data-theme="light"] .sidebar-streak.at-risk,
+[data-theme="light"] .service-status.inactive,
+[data-theme="light"] .sidebar-ai-chip.no-key {
+  background: #fdecd9 !important;
+  border-color: #f0c896 !important;
+  color: #B25E00 !important;
+}
+
+[data-theme="light"] .sbtn-danger-full:hover,
+[data-theme="light"] .data-card.danger,
+[data-theme="light"] .cust-icon-btn.danger:hover {
+  background: #fbe7e7 !important;
+  border-color: #f0b8b8 !important;
+}
+
+[data-theme="light"] .toast { background: var(--bg2); border-color: var(--border2); color: var(--text); }
+[data-theme="light"] .cust-body { scrollbar-color: var(--border2) transparent; }
+[data-theme="light"] .cust-body::-webkit-scrollbar-thumb { background: var(--border2); }
+[data-theme="light"] .cust-icon-btn:hover { background: var(--bg4); color: var(--text); }
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html, body, #root { height: 100%; background: var(--bg); color: var(--text); font-family: 'Syne', sans-serif; -webkit-font-smoothing: antialiased; }
 
@@ -412,6 +491,7 @@ select option { background:var(--bg2); color:var(--text); }
 .sform { display: flex; flex-direction: column; max-width: 520px; }
 .sform-title { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 1px; margin-bottom: 6px; }
 .sform-sub { font-size: 13px; color: var(--muted2); margin-bottom: 20px; line-height: 1.5; }
+.sform-hint { font-size: 12px; color: var(--muted); line-height: 1.5; }
 
 /* Form elements */
 .sinp {

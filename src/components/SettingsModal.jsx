@@ -163,6 +163,7 @@ export default function SettingsModal({ onClose, onResetKey }) {
   function resetAppearance() {
     const next = {
       ...settings,
+      theme: DEFAULT_SETTINGS.theme,
       accentColor: DEFAULT_SETTINGS.accentColor,
       fontSize: DEFAULT_SETTINGS.fontSize,
       compactMode: false,
@@ -301,7 +302,24 @@ export default function SettingsModal({ onClose, onResetKey }) {
                 <div className="sform-title">Appearance</div>
                 <p className="sform-sub">Customize the look and feel of GRIND.</p>
 
-                <label className="slabel">Accent Color</label>
+                <label className="slabel">Theme</label>
+                <div className="seg-ctrl">
+                  {[
+                    { id:"dark",  label:"🌙 Dark"  },
+                    { id:"light", label:"☀️ Light" },
+                    { id:"auto",  label:"🖥 Auto"   },
+                  ].map(t => (
+                    <button key={t.id} className={`seg-btn ${(settings.theme||"dark")===t.id?"active":""}`}
+                      onClick={() => update("theme", t.id)}>
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="sform-hint" style={{ marginTop:6 }}>
+                  "Auto" follows your system's light/dark preference.
+                </p>
+
+                <label className="slabel" style={{ marginTop:20 }}>Accent Color</label>
                 <div className="color-grid">
                   {ACCENT_PRESETS.map(c => (
                     <button key={c.value} className={`color-swatch ${settings.accentColor===c.value?"active":""}`}
