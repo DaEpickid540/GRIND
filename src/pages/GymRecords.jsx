@@ -2,8 +2,172 @@ import { useState, useEffect } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { addGymRecord, getGymRecords, deleteGymRecord } from "../lib/firebase";
 import { useToast } from "../components/Toast";
+import { callAI } from "../lib/aiProvider";
 
 const PRESETS = ["Bench Press","Squat","Deadlift","Overhead Press","Pull-ups","Barbell Row","Dips","Bicep Curl","Tricep Pushdown","Leg Press","Romanian Deadlift","Hip Thrust","Incline Press","Lat Pulldown","Cable Fly","Run (miles)","Custom…"];
+
+// ── AI helpers ───────────────────────────────────────────────────────────────
+function parseAIJson(text) {
+  const stripped = text.replace(/```json|```/g, "").trim();
+  const match = stripped.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error("No JSON found in response");
+  return JSON.parse(match[0]);
+}
+
+const WORKOUT_GOALS  = ["Build muscle", "Lose fat / cut", "Strength", "Endurance / conditioning", "General fitness"];
+const WORKOUT_LEVELS = ["Beginner", "Intermediate", "Advanced"];
+
+// ── AI Workout Plan Generator (mirrors the Nutrition meal-plan generator) ───
+function WorkoutPlanGen({ user }) {
+  const toast = useToast();
+  const [days,      setDays]      = useState(3);
+  const [goal,      setGoal]      = useState(WORKOUT_GOALS[0]);
+  const [level,     setLevel]     = useState("Intermediate");
+  const [equipment, setEquipment] = useState("");
+  const [notes,     setNotes]     = useState("");
+  const [plan,      setPlan]      = useState(null);
+  const [loading,   setLoading]   = useState(false);
+  const [expanded,  setExpanded]  = useState({});
+
+  async function generate() {
+    if (loading) return;
+    setLoading(true);
+    try {
+      const eqStr   = equipment.trim() ? `Available equipment: ${equipment.trim()}.` : "Assume access to a standard full gym.";
+      const noteStr = notes.trim() ? `Limitations/notes — respect these strictly, avoid risky movements where injuries are mentioned: ${notes.trim()}.` : "";
+
+      const userMessage = `Generate a ${days}-day workout plan / training split. Goal: ${goal}. Experience level: ${level}. ${eqStr} ${noteStr}
+
+Return ONLY valid JSON in this exact structure — no other text:
+{
+  "days": [
+    {
+      "day": "Day 1 — Push",
+      "focus": "Chest, Shoulders, Triceps",
+      "exercises": [
+        { "name": "Barbell Bench Press", "sets": 4, "reps": "6-8", "rest": "90s", "notes": "Controlled tempo, full range of motion" }
+      ],
+      "estimatedDuration": "55 min"
+    }
+  ],
+  "summary": "2-3 sentences on why this split fits the stated goal, level, and equipment."
+}`;
+
+      const text = await callAI({
+        system: "You are an expert strength & conditioning coach. Output only valid JSON, no markdown fencing outside the object. Tailor exercise selection strictly to the stated equipment and experience level, and respect any injuries/limitations mentioned — substitute safer alternatives where needed.",
+        userMessage,
+        maxTokens: days <= 3 ? 1800 : days <= 5 ? 2800 : 3800,
+      });
+
+      const parsed = parseAIJson(text);
+      setPlan(parsed);
+      setExpanded({ 0: true });
+      toast("Workout plan ready! 💪", "success");
+    } catch (e) {
+      if (e.message === "NO_KEY") toast("No API key set — go to Settings ⚙️", "error");
+      else toast("Generation failed — try again", "error");
+      console.error(e);
+    } finally { setLoading(false); }
+  }
+
+  return (
+    <div className="meal-plan-section">
+      <div className="mp-controls card">
+        <div className="mp-control-row">
+          <div className="mp-control-group">
+            <label className="mp-label">Plan length</label>
+            <div className="mp-day-btns">
+              {[3, 5, 7].map(d => (
+                <button key={d} className={`mp-day-btn${days===d?" active":""}`} onClick={() => setDays(d)}>
+                  {d} Days
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="mp-control-group">
+            <label className="mp-label">Goal</label>
+            <select className="mp-input" value={goal} onChange={e => setGoal(e.target.value)}>
+              {WORKOUT_GOALS.map(g => <option key={g}>{g}</option>)}
+            </select>
+          </div>
+        </div>
+        <div className="mp-control-row" style={{ marginTop:12 }}>
+          <div className="mp-control-group">
+            <label className="mp-label">Experience level</label>
+            <div className="mp-day-btns">
+              {WORKOUT_LEVELS.map(l => (
+                <button key={l} className={`mp-day-btn${level===l?" active":""}`} onClick={() => setLevel(l)}>
+                  {l}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="mp-control-group">
+            <label className="mp-label">Equipment <span style={{ color:"#555" }}>(optional)</span></label>
+            <input className="mp-input" type="text" placeholder="e.g. Full gym, dumbbells only, bodyweight…"
+              value={equipment} onChange={e => setEquipment(e.target.value)}/>
+          </div>
+        </div>
+        <div className="mp-control-group" style={{ marginTop:12 }}>
+          <label className="mp-label">Limitations / focus notes <span style={{ color:"#555" }}>(optional)</span></label>
+          <input className="mp-input" type="text" placeholder="e.g. bad left knee — avoid heavy squats, prioritize upper body…"
+            value={notes} onChange={e => setNotes(e.target.value)} maxLength={120}/>
+        </div>
+        <button className="btn-primary mp-generate-btn" onClick={generate} disabled={loading}>
+          {loading ? "⏳ Generating…" : `✨ Generate ${days}-Day Workout Plan`}
+        </button>
+      </div>
+
+      {loading && (
+        <div className="loading-card" style={{ marginTop:20 }}>
+          <div className="spinner"/>
+          <p>Building your training split…</p>
+        </div>
+      )}
+
+      {!loading && plan && (
+        <div className="mp-plan">
+          {plan.summary && <div className="mp-summary">💬 {plan.summary}</div>}
+          {plan.days?.map((day, di) => (
+            <div key={di} className="mp-day-card">
+              <button className="mp-day-header" onClick={() => setExpanded(e => ({ ...e, [di]: !e[di] }))}>
+                <span className="mp-day-title">{day.day}</span>
+                <div className="mp-day-totals">
+                  {day.focus && <span style={{ color:"#4DC9FF" }}>{day.focus}</span>}
+                  {day.estimatedDuration && <span style={{ color:"#FFD700" }}>⏱ {day.estimatedDuration}</span>}
+                </div>
+                <span className="mp-day-chevron">{expanded[di] ? "▲" : "▼"}</span>
+              </button>
+              {expanded[di] && (
+                <div className="mp-meals">
+                  {day.exercises?.map((ex, ei) => (
+                    <div key={ei} className="mp-meal-row">
+                      <span className="mp-meal-type">{ex.sets}×{ex.reps}</span>
+                      <div className="mp-meal-info">
+                        <div className="mp-meal-name">{ex.name}</div>
+                        {ex.notes && <div className="mp-meal-desc">{ex.notes}</div>}
+                        {ex.rest && <div className="mp-meal-macros"><span style={{ color:"#888" }}>Rest: {ex.rest}</span></div>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!loading && !plan && (
+        <div className="empty-state-card" style={{ marginTop:20 }}>
+          <p style={{ color:"#555" }}>
+            Pick your goal, level, and equipment, then hit Generate — the AI will build a
+            full multi-day training split tailored to you, exercise-by-exercise.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function GymRecords() {
   const { user } = useAuth();
@@ -14,7 +178,7 @@ export default function GymRecords() {
   const [customEx, setCustomEx] = useState("");
   const [saving, setSaving] = useState(false);
   const [filter, setFilter] = useState("All");
-  const [tab, setTab]       = useState("log"); // log | history | prs
+  const [tab, setTab]       = useState("log"); // log | history | prs | ai_plan
 
   // Load records from subcollection
   useEffect(() => {
@@ -63,9 +227,9 @@ export default function GymRecords() {
       </div>
 
       <div className="tabs">
-        {["log","prs","history"].map(t=>(
+        {["log","prs","history","ai_plan"].map(t=>(
           <button key={t} className={`tab-btn ${tab===t?"active":""}`} onClick={()=>setTab(t)}>
-            {t==="log"?"➕ Log Set":t==="prs"?"🏅 PRs":"📜 History"}
+            {t==="log"?"➕ Log Set":t==="prs"?"🏅 PRs":t==="history"?"📜 History":"🤖 AI Workout Plans"}
           </button>
         ))}
       </div>
@@ -133,6 +297,8 @@ export default function GymRecords() {
           </div>
         </>
       )}
+
+      {tab==="ai_plan" && <WorkoutPlanGen user={user} />}
     </div>
   );
 }
