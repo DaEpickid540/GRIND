@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { getSettings, saveSettings, DEFAULT_SETTINGS } from "../lib/userSettings";
 import { PROVIDERS, MODEL_INFO, getModelInfo, getAIConfig, saveAIConfig, clearAIConfig, testKey } from "../lib/aiProvider";
+import { SEARCH_PROVIDERS, getSearchConfig, saveSearchConfig, clearSearchConfig } from "../lib/searchProvider";
 import { HABIT_CATEGORIES } from "../data/gameData";
 import { useAuth } from "../hooks/useAuth";
 import { logout, updateUserProfile, getCheckinHistory, uploadProfilePhoto, enablePushNotifications, updateReminderPrefs } from "../lib/firebase";
@@ -8,6 +9,7 @@ import { useToast } from "./Toast";
 
 const TABS = [
   { id:"ai",       icon:"🤖", label:"AI Provider"    },
+  { id:"search",   icon:"🔍", label:"Search"         },
   { id:"profile",  icon:"🧬", label:"Your Profile"   },
   { id:"appear",   icon:"🎨", label:"Appearance"     },
   { id:"habits",   icon:"✅", label:"Habits"         },
@@ -43,6 +45,13 @@ export default function SettingsModal({ onClose, onResetKey }) {
   const [testing,    setTesting]    = useState(false);
   const [verified,   setVerified]   = useState(false);
   const [keyError,   setKeyError]   = useState("");
+
+  // Search tab state
+  const searchCfg = getSearchConfig();
+  const [searchProvider, setSearchProvider] = useState(searchCfg?.provider || "contextwire");
+  const [searchKey,      setSearchKey]      = useState(searchCfg?.key || "");
+  const [searchEnabled,  setSearchEnabled]  = useState(!!searchCfg?.enabled);
+  const [showSearchKey,  setShowSearchKey]  = useState(false);
 
   // Active categories — user's custom ones from Firestore, or the generic defaults
   const activeCategories = profile?.customHabits || HABIT_CATEGORIES;
@@ -130,6 +139,27 @@ export default function SettingsModal({ onClose, onResetKey }) {
     onResetKey?.();
   }
 
+  // ── Search tab ──────────────────────────────────────────────────────────
+  function updateSearchCfg(patch) {
+    const next = { provider: searchProvider, key: searchKey, enabled: searchEnabled, ...patch };
+    if ("provider" in patch) setSearchProvider(patch.provider);
+    if ("key"      in patch) setSearchKey(patch.key);
+    if ("enabled"  in patch) setSearchEnabled(patch.enabled);
+    saveSearchConfig(next);
+  }
+
+  function saveSearch() {
+    if (!searchKey.trim()) { toast("Enter an API key first", "warning"); return; }
+    updateSearchCfg({ key: searchKey.trim() });
+    toast(`${SEARCH_PROVIDERS[searchProvider]?.label || "Search"} key saved ✅`, "success");
+  }
+
+  function clearSearch() {
+    clearSearchConfig();
+    setSearchKey(""); setSearchEnabled(false);
+    toast("Search settings cleared", "warning");
+  }
+
   // ── Data tab ─────────────────────────────────────────────────────────
   async function exportData() {
     if (!user) return;
@@ -176,6 +206,7 @@ export default function SettingsModal({ onClose, onResetKey }) {
 
   const prov = PROVIDERS[aiProvider];
   const activeAI = getAIConfig();
+  const searchProv = SEARCH_PROVIDERS[searchProvider];
 
   return (
     <div className="settings-overlay" onClick={e => e.target===e.currentTarget && onClose()}>
@@ -288,6 +319,86 @@ export default function SettingsModal({ onClose, onResetKey }) {
                   <button className="sbtn-save" onClick={saveAI} disabled={!aiKey.trim()}>Save</button>
                   {activeAI && <button className="sbtn-danger" onClick={clearAI}>Clear</button>}
                 </div>
+              </div>
+            )}
+
+            {/* ── INTERNET SEARCH ── */}
+            {tab==="search" && (
+              <div className="sform">
+                <div className="sform-title">Internet Search</div>
+                <p className="sform-sub">
+                  Let the AI ground its answers in live web results — current events, recent
+                  research, today's prices. Pick a provider and add your key. Stored on this device only.
+                </p>
+
+                {searchCfg?.enabled && searchCfg?.key && (
+                  <div className="active-badge">
+                    <span style={{ color:"var(--accent)" }}>{SEARCH_PROVIDERS[searchCfg.provider]?.label}</span>
+                    <span className="active-badge-model">{SEARCH_PROVIDERS[searchCfg.provider]?.needsProxy ? "key saved · proxy needed" : "active"}</span>
+                    <span className="live-dot"/>
+                  </div>
+                )}
+
+                <div className="toggle-rows" style={{ marginBottom:18 }}>
+                  <ToggleRow label="Enable web search" sub="Let AI features pull in live results when it's relevant"
+                    value={searchEnabled} onChange={v => updateSearchCfg({ enabled: v })}/>
+                </div>
+
+                <label className="slabel">Provider</label>
+                <div className="provider-grid">
+                  {Object.values(SEARCH_PROVIDERS).map(p => (
+                    <button key={p.id} className={`prov-btn ${searchProvider===p.id?"active":""}`}
+                      onClick={() => updateSearchCfg({ provider: p.id })}>
+                      <span style={{ fontSize:24 }}>{p.id==="contextwire" ? "🧭" : p.id==="serpapi" ? "🔎" : "🦁"}</span>
+                      <span style={{ fontWeight:700, fontSize:13 }}>
+                        {p.label}
+                        {p.recommended && <span className="rec-badge">★ Recommended</span>}
+                      </span>
+                      {searchCfg?.provider===p.id && searchCfg?.enabled && <span className="prov-live"/>}
+                    </button>
+                  ))}
+                </div>
+
+                {searchProv && (
+                  <>
+                    <p className="sform-hint" style={{ marginTop:10 }}>{searchProv.desc}</p>
+
+                    {searchProv.needsProxy && (
+                      <div className="model-vision-warn">
+                        ⚠️ <strong>{searchProv.label} blocks direct browser requests (CORS)</strong> — to actually
+                        run searches through it from GRIND, a small server-side proxy (e.g. a Firebase Cloud
+                        Function that forwards the request and attaches your key) would need to be deployed first.
+                        You can still save your key here for when that's wired up, but live searches won't run
+                        through {searchProv.label} directly from the browser yet.
+                        <strong> ContextWire works today with zero extra setup.</strong>
+                      </div>
+                    )}
+
+                    <label className="slabel" style={{ marginTop:14 }}>API Key</label>
+                    <div className="key-wrap">
+                      <input className="sinp key-field" type={showSearchKey?"text":"password"}
+                        placeholder="Paste your API key…" value={searchKey}
+                        onChange={e => setSearchKey(e.target.value)}
+                        onPaste={e => { e.preventDefault(); setSearchKey(e.clipboardData.getData("text").trim()); }}/>
+                      <button className="key-vis" onClick={() => setShowSearchKey(s=>!s)}>{showSearchKey?"🙈":"👁️"}</button>
+                    </div>
+                    <div className="key-hint">
+                      {searchProv.keyHelp}{" "}
+                      <a href={`https://${searchProv.site}`} target="_blank" rel="noopener noreferrer" className="slink">{searchProv.site} →</a>
+                    </div>
+
+                    <div className="sprov-note">
+                      {searchProv.id==="contextwire" && "Multi-source research engine with no LLM lock-in — built for client apps, works directly from the browser, free tier available."}
+                      {searchProv.id==="serpapi"     && "Structured Google/Bing/DuckDuckGo results as JSON. Needs a proxy to call from a hosted browser app."}
+                      {searchProv.id==="brave"       && "Independent search index with a generous free tier and a privacy-first stance. Needs a proxy to call from a hosted browser app."}
+                    </div>
+
+                    <div className="sbtn-row">
+                      <button className="sbtn-save" onClick={saveSearch} disabled={!searchKey.trim()}>Save</button>
+                      {(searchCfg?.key || searchKey) && <button className="sbtn-danger" onClick={clearSearch}>Clear</button>}
+                    </div>
+                  </>
+                )}
               </div>
             )}
 

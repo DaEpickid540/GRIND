@@ -4,6 +4,20 @@ import { useState } from "react";
 import { saveOnboarding } from "../lib/firebase";
 import { useAuth } from "../hooks/useAuth";
 import { useToast } from "./Toast";
+import { saveSearchConfig, getSearchConfig } from "../lib/searchProvider";
+
+// Map the friendly onboarding label to the internal search-provider id
+const SEARCH_PREF_TO_ID = {
+  "ContextWire (recommended)": "contextwire",
+  "SerpAPI": "serpapi",
+  "Brave Search": "brave",
+};
+
+function applySearchPref(pref) {
+  const id = SEARCH_PREF_TO_ID[pref];
+  if (!id) return; // "Not now" or unset — leave default config alone
+  saveSearchConfig({ ...getSearchConfig(), provider: id });
+}
 
 const STEPS = [
   // ── 1. Intro + freeform additional info ───────────────────
@@ -116,6 +130,20 @@ const STEPS = [
       },
     ],
   },
+
+  // ── 8. Internet search ────────────────────────────────────
+  {
+    id: "search",
+    title: "Want the AI to search the live web?",
+    sub: "Some questions need fresh info — current events, recent studies, today's prices. Pick a provider now (you'll add the actual API key later in Settings → Search), or skip for now.",
+    fields: [
+      {
+        key: "searchProviderPref", label: "Preferred search provider", type: "select",
+        options: ["ContextWire (recommended)", "SerpAPI", "Brave Search", "Not now — I'll set it up later"],
+        defaultValue: "ContextWire (recommended)",
+      },
+    ],
+  },
 ];
 
 const TOTAL_STEPS = STEPS.length;
@@ -149,6 +177,7 @@ export default function OnboardingModal({ onDone }) {
     if (!isLast) { setStepIdx(i => i + 1); return; }
     setSaving(true);
     try {
+      applySearchPref(answers.searchProviderPref);
       await saveOnboarding(user.uid, answers);
       await refreshProfile();
       toast("Let's go 🔥 You're locked in.", "success");

@@ -530,6 +530,10 @@ select option { background:var(--bg2); color:var(--text); }
 .prov-btn:hover { border-color: var(--muted); color: var(--text); }
 .prov-btn.active { border-color: var(--pc, var(--accent)); color: var(--text); background: var(--bg4); }
 .prov-live { position: absolute; top: 7px; right: 7px; width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+.rec-badge {
+  display: inline-block; margin-left: 5px; font-size: 9px; font-weight: 800;
+  color: var(--green); letter-spacing: .03em; white-space: nowrap;
+}
 
 .key-wrap { display: flex; gap: 0; margin-bottom: 6px; }
 .key-field { border-radius: 8px 0 0 8px !important; flex: 1; }
