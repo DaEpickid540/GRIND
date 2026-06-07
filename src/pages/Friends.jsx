@@ -2,7 +2,11 @@ import { useState, useEffect, useRef } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { sendFriendRequest, acceptFriendRequest, declineFriendRequest,
          watchIncomingRequests, getFriendsProfiles, getUserProfile,
-         sendChallenge, watchMyChallenges, acceptChallenge, declineChallenge, resolveChallenge } from "../lib/firebase";
+         sendChallenge, watchMyChallenges, acceptChallenge, declineChallenge, resolveChallenge,
+         createGuild, watchMyGuild, findGuildByName, sendGuildInvite, watchGuildInvites,
+         acceptGuildInvite, declineGuildInvite, leaveGuild, kickGuildMember,
+         sendGuildChallenge, watchMyGuildChallenges, acceptGuildChallenge,
+         declineGuildChallenge, resolveGuildChallenge } from "../lib/firebase";
 import { getLevelInfo } from "../data/gameData";
 import { useToast } from "../components/Toast";
 import QRCode from "qrcode";
@@ -199,7 +203,7 @@ export default function Friends() {
       </div>
 
       <div className="tabs" style={{ marginBottom:20 }}>
-        {[["friends","👥 Friends"],["add","➕ Add"],["requests","📬 Requests"],["challenges","⚔️ Challenges"]].map(([id,label]) => (
+        {[["friends","👥 Friends"],["add","➕ Add"],["requests","📬 Requests"],["challenges","⚔️ Challenges"],["guild","🛡️ Guild"]].map(([id,label]) => (
           <button key={id} className={`tab-btn ${tab===id?"active":""}`} onClick={() => setTab(id)}>
             {label}
             {id==="requests"   && requests.length>0        ? ` (${requests.length})` : ""}
@@ -279,6 +283,9 @@ export default function Friends() {
           {pastChallenges.map(c => <ChallengeCard key={c.id} c={c} uid={user.uid} past/>)}
         </div>
       )}
+
+      {/* GUILD */}
+      {tab==="guild" && <GuildSection user={user} friends={friends} toast={toast} />}
     </div>
   );
 }
@@ -301,6 +308,297 @@ function RequestCard({ req, onAccept, onDecline }) {
       <div style={{ display:"flex", gap:8 }}>
         <button className="btn-primary" onClick={onAccept} style={{ width:"auto", padding:"7px 16px", fontSize:13 }}>Accept</button>
         <button className="btn-secondary" onClick={onDecline} style={{ padding:"7px 16px" }}>Decline</button>
+      </div>
+    </div>
+  );
+}
+
+// ── Guilds / Squads — N-person team challenges ──────────────────────────────
+const GUILD_EMOJIS = ["🛡️","⚔️","🐉","🦁","🐺","🔥","⚡","🌊","🏔️","💀","👑","🚀"];
+
+function GuildSection({ user, friends, toast }) {
+  const [guild,        setGuild]        = useState(undefined); // undefined = loading, null = none
+  const [invites,      setInvites]      = useState([]);
+  const [gChallenges,  setGChallenges]  = useState([]);
+  const [creating,     setCreating]     = useState(false);
+  const [name,         setName]         = useState("");
+  const [emoji,        setEmoji]        = useState(GUILD_EMOJIS[0]);
+  const [targetName,   setTargetName]   = useState("");
+  const [challenging,  setChallenging]  = useState(false);
+  const [inviteFriend, setInviteFriend] = useState("");
+
+  useEffect(() => {
+    if (!user) return;
+    const unsub = watchMyGuild(user.uid, setGuild);
+    return () => unsub();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    const unsub = watchGuildInvites(user.uid, setInvites);
+    return () => unsub();
+  }, [user]);
+
+  useEffect(() => {
+    if (!guild?.id) { setGChallenges([]); return; }
+    const unsub = watchMyGuildChallenges(guild.id, async list => {
+      const today = new Date().toISOString().split("T")[0];
+      for (const c of list) {
+        if (c.status === "active" && c.endsAt < today) await resolveGuildChallenge(c.id);
+      }
+      setGChallenges(list);
+    });
+    return () => unsub();
+  }, [guild?.id]);
+
+  async function handleCreate() {
+    const v = name.trim();
+    if (!v) { toast("Enter a guild name", "warning"); return; }
+    setCreating(true);
+    try {
+      await createGuild(user.uid, user.displayName, v, emoji);
+      toast(`Guild "${v}" founded! 🛡️`, "success");
+      setName("");
+    } catch (e) { toast("Failed to create guild", "error"); }
+    finally { setCreating(false); }
+  }
+
+  async function handleInvite() {
+    if (!inviteFriend) return;
+    const friend = friends.find(f => f.uid === inviteFriend);
+    if (!friend) return;
+    try {
+      await sendGuildInvite(guild.id, guild.name, guild.emoji, user.uid, user.displayName, friend.uid, friend.displayName);
+      toast(`Invite sent to ${friend.displayName}!`, "success");
+      setInviteFriend("");
+    } catch (e) { toast("Failed to send invite", "error"); }
+  }
+
+  async function handleAcceptInvite(inv) {
+    try { await acceptGuildInvite(inv); toast(`Joined ${inv.guildName}! 🛡️`, "success"); }
+    catch (e) { toast("Failed to join — you may already be in a guild", "error"); }
+  }
+
+  async function handleChallenge() {
+    const v = targetName.trim();
+    if (!v) { toast("Enter the rival guild's name", "warning"); return; }
+    setChallenging(true);
+    try {
+      const target = await findGuildByName(v);
+      if (!target) { toast("No guild found with that exact name", "error"); return; }
+      if (target.id === guild.id) { toast("That's your own guild 😄", "warning"); return; }
+      await sendGuildChallenge(guild, target, user.uid, user.displayName, 7);
+      toast(`Challenge sent to ${target.name}! ⚔️`, "success");
+      setTargetName("");
+    } catch (e) { toast("Failed to send challenge", "error"); }
+    finally { setChallenging(false); }
+  }
+
+  if (guild === undefined) return <div className="loading-card"><div className="spinner"/></div>;
+
+  const isOwner = guild?.ownerUid === user.uid;
+  const inviteCandidates = friends.filter(f => !(guild?.members || []).includes(f.uid));
+  const activeGC = gChallenges.filter(c => c.status === "active" || c.status === "pending");
+  const pastGC   = gChallenges.filter(c => c.status === "completed" || c.status === "declined");
+
+  // ── Not in a guild yet ──
+  if (!guild) {
+    return (
+      <div>
+        {invites.length > 0 && (
+          <div style={{ marginBottom: 24 }}>
+            <h3 className="section-sub-title" style={{ marginBottom:12 }}>Guild Invites</h3>
+            {invites.map(inv => (
+              <div key={inv.id} className="friend-card" style={{ marginBottom:10 }}>
+                <div className="friend-avatar placeholder">{inv.guildEmoji}</div>
+                <div className="friend-info">
+                  <div className="friend-name">{inv.guildName}</div>
+                  <div style={{ fontSize:12, color:"#888" }}>Invited by {inv.fromName}</div>
+                </div>
+                <div style={{ display:"flex", gap:8 }}>
+                  <button className="btn-primary" onClick={() => handleAcceptInvite(inv)} style={{ width:"auto", padding:"7px 16px", fontSize:13 }}>Join</button>
+                  <button className="btn-secondary" onClick={() => declineGuildInvite(inv.id)} style={{ padding:"7px 16px" }}>Decline</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="empty-state-card">
+          <div style={{ fontSize:48 }}>🛡️</div>
+          <h3>No guild yet</h3>
+          <p style={{ color:"#888", marginBottom:16 }}>
+            Found a guild and recruit your friends — squads compete together for XP glory,
+            instead of going it alone in 1-on-1 challenges.
+          </p>
+          <div style={{ display:"flex", gap:8, justifyContent:"center", flexWrap:"wrap", marginBottom:14 }}>
+            {GUILD_EMOJIS.map(e => (
+              <button key={e} onClick={() => setEmoji(e)}
+                style={{ fontSize:20, padding:"6px 10px", borderRadius:8, cursor:"pointer",
+                  border:`2px solid ${emoji===e ? "var(--accent)" : "var(--border2)"}`,
+                  background: emoji===e ? "var(--bg4)" : "var(--bg3)" }}>
+                {e}
+              </button>
+            ))}
+          </div>
+          <div style={{ display:"flex", gap:8, justifyContent:"center", maxWidth:400, margin:"0 auto", flexWrap:"wrap" }}>
+            <input className="inp" placeholder="Guild name (e.g. The Grindset)" value={name}
+              onChange={e => setName(e.target.value)} onKeyDown={e => e.key==="Enter" && handleCreate()} maxLength={30}/>
+            <button className="btn-primary" onClick={handleCreate} disabled={creating || !name.trim()} style={{ width:"auto", padding:"10px 20px", flexShrink:0 }}>
+              {creating ? "Founding…" : "Found Guild"}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── In a guild ──
+  return (
+    <div>
+      <div className="card" style={{ display:"flex", alignItems:"center", gap:16, marginBottom:20, padding:20 }}>
+        <div style={{ fontSize:40 }}>{guild.emoji}</div>
+        <div style={{ flex:1 }}>
+          <div style={{ fontSize:20, fontWeight:800 }}>{guild.name}</div>
+          <div style={{ fontSize:12, color:"#888" }}>
+            {(guild.members || []).length} member{(guild.members || []).length !== 1 ? "s" : ""}
+            {isOwner && " · 👑 You lead this guild"}
+          </div>
+        </div>
+        <button className="btn-secondary" onClick={async () => {
+          if (confirm(`Leave ${guild.name}?`)) { await leaveGuild(guild.id, user.uid); toast("You left the guild", "info"); }
+        }}>
+          Leave
+        </button>
+      </div>
+
+      {/* Roster */}
+      <h3 className="section-sub-title" style={{ marginBottom:12 }}>Roster</h3>
+      <div className="friends-list" style={{ marginBottom:24 }}>
+        {(guild.members || []).map(uid => (
+          <GuildMemberRow key={uid} uid={uid} name={guild.memberNames?.[uid]} isOwner={isOwner}
+            guildId={guild.id} ownerUid={guild.ownerUid} me={user.uid} toast={toast}/>
+        ))}
+      </div>
+
+      {/* Recruit */}
+      {isOwner && inviteCandidates.length > 0 && (
+        <div className="card" style={{ padding:16, marginBottom:24 }}>
+          <label className="mp-label">Recruit a friend</label>
+          <div style={{ display:"flex", gap:8, marginTop:8, flexWrap:"wrap" }}>
+            <select className="inp" value={inviteFriend} onChange={e => setInviteFriend(e.target.value)}>
+              <option value="">Choose a friend…</option>
+              {inviteCandidates.map(f => <option key={f.uid} value={f.uid}>{f.displayName}</option>)}
+            </select>
+            <button className="btn-primary" onClick={handleInvite} disabled={!inviteFriend} style={{ width:"auto", padding:"10px 20px", flexShrink:0 }}>
+              Invite
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Challenge another guild */}
+      {isOwner && (
+        <div className="card" style={{ padding:16, marginBottom:24 }}>
+          <label className="mp-label">⚔️ Challenge a rival guild — 7-day combined-XP race</label>
+          <div style={{ display:"flex", gap:8, marginTop:8, flexWrap:"wrap" }}>
+            <input className="inp" placeholder="Exact rival guild name…" value={targetName}
+              onChange={e => setTargetName(e.target.value)} onKeyDown={e => e.key==="Enter" && handleChallenge()}/>
+            <button className="btn-primary" onClick={handleChallenge} disabled={challenging || !targetName.trim()} style={{ width:"auto", padding:"10px 20px", flexShrink:0 }}>
+              {challenging ? "Sending…" : "Challenge"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Guild challenges */}
+      <h3 className="section-sub-title" style={{ marginBottom:12 }}>Guild Challenges</h3>
+      {gChallenges.length === 0 && (
+        <div className="empty-state-card"><p style={{ color:"#555" }}>
+          No squad challenges yet. Find a rival guild's exact name and challenge them to a combined-XP race!
+        </p></div>
+      )}
+      {activeGC.map(c => (
+        <GuildChallengeCard key={c.id} c={c} guildId={guild.id} isOwner={isOwner}
+          onAccept={() => acceptGuildChallenge(c.id)} onDecline={() => declineGuildChallenge(c.id)}/>
+      ))}
+      {pastGC.length > 0 && <h3 className="section-sub-title" style={{ margin:"20px 0 12px" }}>History</h3>}
+      {pastGC.map(c => <GuildChallengeCard key={c.id} c={c} guildId={guild.id} past/>)}
+    </div>
+  );
+}
+
+function GuildMemberRow({ uid, name, isOwner, guildId, ownerUid, me, toast }) {
+  const [p, setP] = useState(null);
+  useEffect(() => { getUserProfile(uid).then(setP); }, [uid]);
+  if (!p) return null;
+  const li = getLevelInfo(p.xp || 0);
+  const isLeader = uid === ownerUid;
+  return (
+    <div className="friend-card">
+      {(p.customPhotoURL || p.photoURL)
+        ? <img src={p.customPhotoURL || p.photoURL} className="friend-avatar" referrerPolicy="no-referrer" alt=""/>
+        : <div className="friend-avatar placeholder">{(name || p.displayName)?.[0]}</div>}
+      <div className="friend-info">
+        <div className="friend-name">{name || p.displayName} {isLeader && <span title="Guild leader">👑</span>}</div>
+        <div style={{ fontSize:12, color:li.current.color }}>{li.current.emoji} {li.current.title}</div>
+        <div style={{ fontSize:12, color:"#888" }}>⚡ {p.xp || 0} XP · 🔥 {p.streak || 0} streak</div>
+      </div>
+      {isOwner && uid !== me && (
+        <button className="challenge-btn" title="Remove from guild" onClick={async () => {
+          if (confirm(`Remove ${name || p.displayName} from the guild?`)) { await kickGuildMember(guildId, uid); toast("Member removed", "info"); }
+        }}>✕</button>
+      )}
+    </div>
+  );
+}
+
+function GuildChallengeCard({ c, guildId, past, isOwner, onAccept, onDecline }) {
+  const incoming   = c.toGuildId === guildId;
+  const isFrom     = c.fromGuildId === guildId;
+  const myName     = isFrom ? c.fromGuildName  : c.toGuildName;
+  const myEmoji    = isFrom ? c.fromGuildEmoji : c.toGuildEmoji;
+  const rivalName  = isFrom ? c.toGuildName    : c.fromGuildName;
+  const rivalEmoji = isFrom ? c.toGuildEmoji   : c.fromGuildEmoji;
+  const myGain     = isFrom ? c.fromGain : c.toGain;
+  const rivalGain  = isFrom ? c.toGain   : c.fromGain;
+  const myGuildId  = isFrom ? c.fromGuildId : c.toGuildId;
+  const iWon       = c.winner === myGuildId;
+
+  return (
+    <div className="challenge-card-full">
+      <div className="challenge-icon">{myEmoji}⚔️{rivalEmoji}</div>
+      <div style={{ flex:1 }}>
+        <div style={{ fontWeight:700, fontSize:15 }}>{myName} vs {rivalName}</div>
+        <div style={{ fontSize:12, color:"#888", marginTop:2 }}>
+          Squad XP race · {c.fromMembers?.length || 0} vs {c.toMembers?.length || 0} members · ends {c.endsAt}
+        </div>
+
+        {c.status==="pending" && incoming && isOwner && (
+          <div style={{ display:"flex", gap:8, marginTop:10 }}>
+            <button className="btn-primary" onClick={onAccept} style={{ width:"auto", padding:"6px 16px", fontSize:13 }}>Accept</button>
+            <button className="btn-secondary" onClick={onDecline} style={{ padding:"6px 16px" }}>Decline</button>
+          </div>
+        )}
+        {c.status==="pending" && incoming && !isOwner && <div style={{ fontSize:12, color:"#FF9800", marginTop:8 }}>⏳ Waiting for your guild leader to respond</div>}
+        {c.status==="pending" && !incoming && <div style={{ fontSize:12, color:"#FF9800", marginTop:8 }}>⏳ Waiting for {rivalName} to accept</div>}
+
+        {c.status==="active" && (
+          <div style={{ display:"flex", gap:16, marginTop:8, fontSize:13 }}>
+            <span style={{ color:"#FFD700" }}>{myName}: +{myGain ?? 0} XP</span>
+            <span style={{ color:"#4DC9FF" }}>{rivalName}: +{rivalGain ?? 0} XP</span>
+          </div>
+        )}
+
+        {c.status==="completed" && (
+          <div style={{ marginTop:8 }}>
+            <div style={{ fontSize:14, fontWeight:700, color: c.winner==="tie" ? "#888" : iWon ? "#00FF88" : "#FF4D4D" }}>
+              {c.winner==="tie" ? "🤝 Tie!" : iWon ? "🏆 Your guild won!" : `${rivalName} won`}
+            </div>
+            <div style={{ fontSize:12, color:"#888", marginTop:2 }}>{myName} +{myGain ?? 0} XP · {rivalName} +{rivalGain ?? 0} XP</div>
+          </div>
+        )}
+        {c.status==="declined" && <div style={{ fontSize:12, color:"#666", marginTop:8 }}>Declined</div>}
       </div>
     </div>
   );

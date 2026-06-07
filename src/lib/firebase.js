@@ -266,6 +266,135 @@ export const resolveChallenge = async (challengeId) => {
   return { ...c, fromGain, toGain, winner, status:"completed" };
 };
 
+// ── Guilds / Squads (group challenges — N people competing as a team) ──
+// A user can belong to at most one guild at a time. Guilds challenge other
+// guilds; the combined XP gained by every member over the period decides the winner.
+
+export const createGuild = async (uid, displayName, name, emoji = "🛡️") => {
+  const ref = doc(collection(db, "guilds"));
+  await setDoc(ref, {
+    name, nameLower: name.trim().toLowerCase(), emoji,
+    ownerUid: uid,
+    members: [uid],
+    memberNames: { [uid]: displayName },
+    createdAt: serverTimestamp(),
+  });
+  return ref.id;
+};
+
+export const watchMyGuild = (uid, cb) => {
+  const q = query(collection(db, "guilds"), where("members", "array-contains", uid), limit(1));
+  return onSnapshot(q, snap => cb(snap.empty ? null : { id: snap.docs[0].id, ...snap.docs[0].data() }));
+};
+
+export const findGuildByName = async (name) => {
+  const q = query(collection(db, "guilds"), where("nameLower", "==", name.trim().toLowerCase()), limit(1));
+  const s = await getDocs(q);
+  if (s.empty) return null;
+  return { id: s.docs[0].id, ...s.docs[0].data() };
+};
+
+export const sendGuildInvite = (guildId, guildName, guildEmoji, fromUid, fromName, toUid, toName) =>
+  setDoc(doc(db, "guildInvites", `${guildId}_${toUid}`), {
+    guildId, guildName, guildEmoji,
+    from: fromUid, fromName, to: toUid, toName,
+    status: "pending",
+    createdAt: serverTimestamp(),
+  });
+
+export const watchGuildInvites = (uid, cb) => {
+  const q = query(collection(db, "guildInvites"), where("to", "==", uid), where("status", "==", "pending"));
+  return onSnapshot(q, snap => cb(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+};
+
+export const acceptGuildInvite = async (invite) => {
+  await updateDoc(doc(db, "guilds", invite.guildId), {
+    members: arrayUnion(invite.to),
+    [`memberNames.${invite.to}`]: invite.toName,
+  });
+  await updateDoc(doc(db, "guildInvites", invite.id), { status: "accepted" });
+};
+
+export const declineGuildInvite = (inviteId) =>
+  updateDoc(doc(db, "guildInvites", inviteId), { status: "declined" });
+
+export const leaveGuild = async (guildId, uid) => {
+  const ref  = doc(db, "guilds", guildId);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return;
+  const g = snap.data();
+  const members = (g.members || []).filter(m => m !== uid);
+  if (members.length === 0) { await deleteDoc(ref); return; }
+  const memberNames = { ...(g.memberNames || {}) };
+  delete memberNames[uid];
+  const patch = { members, memberNames };
+  if (g.ownerUid === uid) patch.ownerUid = members[0]; // hand off ownership
+  await updateDoc(ref, patch);
+};
+
+export const kickGuildMember = async (guildId, uid) => leaveGuild(guildId, uid);
+
+// Snapshot every member's current XP — used to measure squad gains over a period
+async function getGuildXPSnapshot(members = []) {
+  const profiles = await Promise.all(members.map(getUserProfile));
+  const snap = {};
+  members.forEach((uid, i) => { snap[uid] = profiles[i]?.xp || 0; });
+  return snap;
+}
+
+export const sendGuildChallenge = async (fromGuild, toGuild, fromUid, fromName, days = 7) => {
+  const ends = new Date(); ends.setDate(ends.getDate() + days);
+  return setDoc(doc(collection(db, "guildChallenges")), {
+    fromGuildId: fromGuild.id, fromGuildName: fromGuild.name, fromGuildEmoji: fromGuild.emoji || "🛡️",
+    fromMembers: fromGuild.members || [], fromMemberNames: fromGuild.memberNames || {},
+    toGuildId: toGuild.id, toGuildName: toGuild.name, toGuildEmoji: toGuild.emoji || "🛡️",
+    toMembers: toGuild.members || [], toMemberNames: toGuild.memberNames || {},
+    guildParticipants: [fromGuild.id, toGuild.id],
+    fromUid, fromName, toUid: toGuild.ownerUid,
+    status: "pending",
+    fromStartXP: null, toStartXP: null,
+    days, endsAt: ends.toISOString().split("T")[0],
+    createdAt: serverTimestamp(),
+  });
+};
+
+export const watchMyGuildChallenges = (guildId, cb) => {
+  const q = query(collection(db, "guildChallenges"), where("guildParticipants", "array-contains", guildId));
+  return onSnapshot(q, snap => cb(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+};
+
+export const acceptGuildChallenge = async (challengeId) => {
+  const ref  = doc(db, "guildChallenges", challengeId);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return;
+  const c = snap.data();
+  const [fromStartXP, toStartXP] = await Promise.all([
+    getGuildXPSnapshot(c.fromMembers), getGuildXPSnapshot(c.toMembers),
+  ]);
+  await updateDoc(ref, { status: "active", fromStartXP, toStartXP, acceptedAt: serverTimestamp() });
+};
+
+export const declineGuildChallenge = (challengeId) =>
+  updateDoc(doc(db, "guildChallenges", challengeId), { status: "declined" });
+
+export const resolveGuildChallenge = async (challengeId) => {
+  const ref  = doc(db, "guildChallenges", challengeId);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return null;
+  const c = snap.data();
+  if (c.status !== "active") return c;
+  const [fromNow, toNow] = await Promise.all([
+    getGuildXPSnapshot(c.fromMembers), getGuildXPSnapshot(c.toMembers),
+  ]);
+  const sumGain = (members, start, now) =>
+    members.reduce((sum, uid) => sum + Math.max(0, (now[uid] || 0) - (start?.[uid] || 0)), 0);
+  const fromGain = sumGain(c.fromMembers, c.fromStartXP, fromNow);
+  const toGain   = sumGain(c.toMembers,   c.toStartXP,   toNow);
+  const winner   = fromGain === toGain ? "tie" : fromGain > toGain ? c.fromGuildId : c.toGuildId;
+  await updateDoc(ref, { status: "completed", fromGain, toGain, winner, resolvedAt: serverTimestamp() });
+  return { ...c, fromGain, toGain, winner, status: "completed" };
+};
+
 // ── Profile photo upload (Firebase Storage) ────────────────────────────
 export const uploadProfilePhoto = async (uid, file) => {
   const { getStorage, ref: storageRef, uploadBytes, getDownloadURL } = await import("firebase/storage");
