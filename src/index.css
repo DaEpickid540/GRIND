@@ -327,6 +327,33 @@ html, body, #root { height: 100%; background: var(--bg); color: var(--text); fon
 
 .ai-insights-list { display:flex; flex-direction:column; gap:10px; margin-top:18px; }
 .ai-insight-item { background:var(--bg3); border:1px solid var(--border2); border-left:3px solid var(--accent); border-radius:8px; padding:12px 16px; font-size:13px; line-height:1.55; color:var(--text); }
+
+/* Knowledge base ("RAG weights") settings tab */
+.kb-cat-list { display:flex; flex-direction:column; gap:10px; margin-top:8px; }
+.kb-cat-row {
+  display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;
+  background:var(--bg3); border:1px solid var(--border); border-radius:10px; padding:12px 16px;
+}
+.kb-cat-info { flex:1 1 220px; min-width:0; }
+.kb-cat-title { font-weight:700; font-size:14px; color:var(--text); }
+.kb-cat-count { font-weight:500; font-size:11px; color:var(--muted); }
+.kb-cat-desc { font-size:12px; color:var(--muted2); margin-top:3px; line-height:1.45; }
+.kb-fact-list { display:flex; flex-direction:column; gap:8px; margin-top:8px; }
+.kb-fact-card { background:var(--bg3); border:1px solid var(--border); border-radius:10px; padding:12px 16px; }
+.kb-fact-meta { display:flex; align-items:center; gap:10px; margin-bottom:6px; }
+.kb-fact-cat { font-size:11px; font-weight:700; color:var(--accent); }
+.kb-fact-weight { font-size:11px; color:var(--muted); font-family:monospace; }
+.kb-fact-remove {
+  margin-left:auto; background:none; border:none; color:var(--muted); cursor:pointer;
+  font-size:13px; padding:2px 6px; border-radius:6px; transition:all .15s;
+}
+.kb-fact-remove:hover { color:var(--red); background:var(--bg4); }
+.kb-fact-text { font-size:13px; color:var(--text); line-height:1.5; }
+.kb-fact-tags { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+.kb-fact-tag {
+  font-size:10px; font-weight:600; color:var(--muted2); background:var(--bg4);
+  border:1px solid var(--border2); border-radius:20px; padding:3px 9px;
+}
 .charts-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
 .levels-track { display:flex; justify-content:space-between; }
 .level-step { display:flex; flex-direction:column; align-items:center; gap:4px; opacity:.3; transition:opacity .3s; }

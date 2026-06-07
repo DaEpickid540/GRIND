@@ -4,6 +4,7 @@ import { useToast } from "../components/Toast";
 import { useAuth } from "../hooks/useAuth";
 import { saveNutritionEntry, getNutritionLog, updateUserProfile } from "../lib/firebase";
 import { buildSystemPrompt } from "../lib/coachVoice";
+import { buildKnowledgeContext } from "../lib/knowledgeBase";
 
 // ── helpers ─────────────────────────────────────────────────────────────────
 function parseAIJson(text) {
@@ -206,8 +207,14 @@ Return ONLY valid JSON in this exact structure — no other text:
   "summary": "2-3 sentences on what makes this plan suitable."
 }`;
 
+      const knowledge = buildKnowledgeContext("mealPlan");
+      const system = [
+        "You are a precise sports nutritionist and meal planner. Output only valid JSON, no markdown fencing outside the object.",
+        knowledge,
+      ].filter(Boolean).join("\n\n");
+
       const text = await callAI({
-        system: "You are a precise sports nutritionist and meal planner. Output only valid JSON, no markdown fencing outside the object.",
+        system,
         userMessage,
         maxTokens: days <= 1 ? 1400 : days <= 3 ? 2400 : 4000,
       });

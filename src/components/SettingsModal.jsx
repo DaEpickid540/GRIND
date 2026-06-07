@@ -2,6 +2,10 @@ import { useState, useEffect } from "react";
 import { getSettings, saveSettings, DEFAULT_SETTINGS } from "../lib/userSettings";
 import { PROVIDERS, MODEL_INFO, getModelInfo, getAIConfig, saveAIConfig, clearAIConfig, testKey } from "../lib/aiProvider";
 import { SEARCH_PROVIDERS, getSearchConfig, saveSearchConfig, clearSearchConfig } from "../lib/searchProvider";
+import {
+  KB_CATEGORIES, KNOWLEDGE_BASE, getKBConfig, getCategoryMultiplier,
+  setCategoryMultiplier, addCustomFact, removeCustomFact,
+} from "../lib/knowledgeBase";
 import { HABIT_CATEGORIES } from "../data/gameData";
 import { useAuth } from "../hooks/useAuth";
 import { logout, updateUserProfile, getCheckinHistory, uploadProfilePhoto, enablePushNotifications, updateReminderPrefs } from "../lib/firebase";
@@ -10,6 +14,7 @@ import { useToast } from "./Toast";
 const TABS = [
   { id:"ai",       icon:"🤖", label:"AI Provider"    },
   { id:"search",   icon:"🔍", label:"Search"         },
+  { id:"knowledge",icon:"🧠", label:"Knowledge"      },
   { id:"profile",  icon:"🧬", label:"Your Profile"   },
   { id:"appear",   icon:"🎨", label:"Appearance"     },
   { id:"habits",   icon:"✅", label:"Habits"         },
@@ -402,6 +407,11 @@ export default function SettingsModal({ onClose, onResetKey }) {
               </div>
             )}
 
+            {/* ── KNOWLEDGE BASE (curated RAG-style grounding) ── */}
+            {tab==="knowledge" && (
+              <KnowledgeTab toast={toast}/>
+            )}
+
             {/* ── PROFILE (Onboarding data) ── */}
             {tab==="profile" && (
               <ProfileTab user={user} toast={toast}/>
@@ -706,6 +716,134 @@ function ToggleRow({ label, sub, value, onChange }) {
       <div className={`toggle-switch ${value?"on":""}`}>
         <div className="toggle-thumb"/>
       </div>
+    </div>
+  );
+}
+
+const KB_MULT_OPTIONS = [
+  { label:"Off",        value:0, sub:"Never used in prompts" },
+  { label:"Normal",     value:1, sub:"Default weight" },
+  { label:"Emphasized", value:2, sub:"Prioritized over other domains" },
+];
+
+function KnowledgeTab({ toast }) {
+  const [cfg,         setCfg]         = useState(getKBConfig());
+  const [newCategory, setNewCategory] = useState("nutrition");
+  const [newTags,     setNewTags]     = useState("");
+  const [newFact,     setNewFact]     = useState("");
+  const [newWeight,   setNewWeight]   = useState(5);
+
+  function refresh() { setCfg(getKBConfig()); }
+
+  function setMult(catId, mult) { setCategoryMultiplier(catId, mult); refresh(); }
+
+  function handleAdd() {
+    if (!newFact.trim()) { toast("Write the fact first", "warning"); return; }
+    addCustomFact({ category:newCategory, tags:newTags, fact:newFact, weight:newWeight });
+    setNewTags(""); setNewFact(""); setNewWeight(5);
+    refresh();
+    toast("Custom fact added — the AI will start weighing it in 🧠", "success");
+  }
+
+  function handleRemove(id) {
+    removeCustomFact(id);
+    refresh();
+    toast("Removed", "info");
+  }
+
+  const curatedCounts = {};
+  KNOWLEDGE_BASE.forEach(f => { curatedCounts[f.category] = (curatedCounts[f.category]||0) + 1; });
+
+  return (
+    <div className="sform">
+      <div className="sform-title">Knowledge Base</div>
+      <p className="sform-sub">
+        GRIND grounds its answers — meal plans, workout plans, physique reads, stats insights, chat —
+        in a curated library of real fitness, nutrition, and body-composition facts instead of letting
+        the model freelance from memory. It's a lightweight, fully-local stand-in for a true vector-RAG
+        pipeline (no embeddings or vector store needed): every fact is tagged and <strong>weighted</strong>,
+        and the highest-scoring ones for each feature get spliced straight into its prompt.
+      </p>
+      <p className="sform-hint">
+        Tune how much each knowledge domain gets leaned on, or add your own facts below — yours compete
+        for the same "slots" as the curated ones, a simple but real way to add your own weights to the mix.
+        Everything here stays on this device.
+      </p>
+
+      <label className="slabel" style={{ marginTop:18 }}>Category weights</label>
+      <div className="kb-cat-list">
+        {Object.entries(KB_CATEGORIES).map(([id, cat]) => {
+          const mult = getCategoryMultiplier(cfg, id);
+          const mine = cfg.customFacts.filter(f => f.category===id).length;
+          return (
+            <div key={id} className="kb-cat-row">
+              <div className="kb-cat-info">
+                <div className="kb-cat-title">
+                  {cat.emoji} {cat.label}
+                  <span className="kb-cat-count"> · {curatedCounts[id]||0} curated{mine ? ` + ${mine} yours` : ""}</span>
+                </div>
+                <div className="kb-cat-desc">{cat.desc}</div>
+              </div>
+              <div className="seg-ctrl">
+                {KB_MULT_OPTIONS.map(opt => (
+                  <button key={opt.value} className={`seg-btn ${mult===opt.value?"active":""}`}
+                    onClick={() => setMult(id, opt.value)} title={opt.sub}>
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <label className="slabel" style={{ marginTop:24 }}>Add your own fact</label>
+      <p className="sform-hint">
+        Anything you want the AI to factor in — your own training philosophy, something your coach or
+        doctor told you, a rule you live by. Write it in plain language; the AI translates it into its
+        own voice when it actually uses it.
+      </p>
+      <div style={{ display:"flex", gap:10, flexWrap:"wrap", marginTop:8 }}>
+        <select className="sinp" style={{ flex:"1 1 170px" }} value={newCategory} onChange={e=>setNewCategory(e.target.value)}>
+          {Object.entries(KB_CATEGORIES).map(([id,cat]) => <option key={id} value={id}>{cat.emoji} {cat.label}</option>)}
+        </select>
+        <input className="sinp" style={{ flex:"2 1 220px" }}
+          placeholder="Tags, comma-separated (e.g. recovery, soreness, sleep)"
+          value={newTags} onChange={e=>setNewTags(e.target.value)}/>
+      </div>
+      <textarea className="sinp" style={{ marginTop:10, resize:"vertical", fontFamily:"inherit" }} rows={3}
+        placeholder="e.g. My physio said my lower back tightness is from sitting all day, not lifting — daily hip-flexor stretches help more than rest."
+        value={newFact} onChange={e=>setNewFact(e.target.value)}/>
+      <div style={{ display:"flex", alignItems:"center", gap:12, marginTop:10 }}>
+        <span className="slabel" style={{ margin:0, whiteSpace:"nowrap" }}>Weight: {newWeight}/10</span>
+        <input type="range" min={1} max={10} value={newWeight} onChange={e=>setNewWeight(+e.target.value)} style={{ flex:1 }}/>
+      </div>
+      <div className="sbtn-row">
+        <button className="sbtn-save" onClick={handleAdd} disabled={!newFact.trim()}>+ Add Fact</button>
+      </div>
+
+      {cfg.customFacts.length > 0 && (
+        <>
+          <label className="slabel" style={{ marginTop:24 }}>Your facts ({cfg.customFacts.length})</label>
+          <div className="kb-fact-list">
+            {cfg.customFacts.map(f => (
+              <div key={f.id} className="kb-fact-card">
+                <div className="kb-fact-meta">
+                  <span className="kb-fact-cat">{KB_CATEGORIES[f.category]?.emoji} {KB_CATEGORIES[f.category]?.label}</span>
+                  <span className="kb-fact-weight">weight {f.weight}/10</span>
+                  <button className="kb-fact-remove" onClick={() => handleRemove(f.id)} title="Remove this fact">✕</button>
+                </div>
+                <div className="kb-fact-text">{f.fact}</div>
+                {f.tags?.length > 0 && (
+                  <div className="kb-fact-tags">
+                    {f.tags.map(t => <span key={t} className="kb-fact-tag">{t}</span>)}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }

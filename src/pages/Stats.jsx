@@ -5,6 +5,7 @@ import { collection, getDocs, orderBy, query } from "firebase/firestore";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, RadarChart, Radar, PolarGrid, PolarAngleAxis } from "recharts";
 import { getLevelInfo, LEVELS, HABIT_CATEGORIES } from "../data/gameData";
 import { callAI } from "../lib/aiProvider";
+import { buildKnowledgeContext } from "../lib/knowledgeBase";
 import { useToast } from "../components/Toast";
 
 // ── Export & AI-insights helpers ─────────────────────────────────────────────
@@ -99,8 +100,14 @@ Profile: Level ${profile?.level || 1}, ${profile?.xp || 0} total XP, ${profile?.
 Generate 4-6 sharp, specific, encouraging-but-honest insights about their patterns — momentum, consistency, day-of-week trends, plateaus, what's working and what isn't. Reference real numbers from the data where possible. Return ONLY valid JSON in this structure, no other text:
 { "insights": ["...", "..."] }`;
 
+  const knowledge = buildKnowledgeContext("insights");
+  const system = [
+    "You are a perceptive, data-driven habit coach. Find genuine patterns rather than generic platitudes — be specific and reference the actual numbers given. Output only valid JSON, no markdown fencing.",
+    knowledge,
+  ].filter(Boolean).join("\n\n");
+
   const text = await callAI({
-    system: "You are a perceptive, data-driven habit coach. Find genuine patterns rather than generic platitudes — be specific and reference the actual numbers given. Output only valid JSON, no markdown fencing.",
+    system,
     userMessage,
     maxTokens: 700,
   });

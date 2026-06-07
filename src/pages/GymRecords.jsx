@@ -3,6 +3,7 @@ import { useAuth } from "../hooks/useAuth";
 import { addGymRecord, getGymRecords, deleteGymRecord } from "../lib/firebase";
 import { useToast } from "../components/Toast";
 import { callAI } from "../lib/aiProvider";
+import { buildKnowledgeContext } from "../lib/knowledgeBase";
 
 const PRESETS = ["Bench Press","Squat","Deadlift","Overhead Press","Pull-ups","Barbell Row","Dips","Bicep Curl","Tricep Pushdown","Leg Press","Romanian Deadlift","Hip Thrust","Incline Press","Lat Pulldown","Cable Fly","Run (miles)","Custom…"];
 
@@ -53,8 +54,14 @@ Return ONLY valid JSON in this exact structure — no other text:
   "summary": "2-3 sentences on why this split fits the stated goal, level, and equipment."
 }`;
 
+      const knowledge = buildKnowledgeContext("workoutPlan");
+      const system = [
+        "You are an expert strength & conditioning coach. Output only valid JSON, no markdown fencing outside the object. Tailor exercise selection strictly to the stated equipment and experience level, and respect any injuries/limitations mentioned — substitute safer alternatives where needed.",
+        knowledge,
+      ].filter(Boolean).join("\n\n");
+
       const text = await callAI({
-        system: "You are an expert strength & conditioning coach. Output only valid JSON, no markdown fencing outside the object. Tailor exercise selection strictly to the stated equipment and experience level, and respect any injuries/limitations mentioned — substitute safer alternatives where needed.",
+        system,
         userMessage,
         maxTokens: days <= 3 ? 1800 : days <= 5 ? 2800 : 3800,
       });

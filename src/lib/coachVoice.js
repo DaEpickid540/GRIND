@@ -3,6 +3,7 @@
 // so the AI knows who it's talking to.
 
 import { getUserOnboarding } from "./firebase";
+import { buildKnowledgeContext } from "./knowledgeBase";
 
 // Voice baseline shared across all features
 const BASE_VOICE = `
@@ -132,12 +133,14 @@ export async function buildSystemPrompt(feature, uid, profile) {
   const onboarding = uid ? await getUserOnboarding(uid).catch(() => null) : null;
   const context = buildContextBlock(onboarding, profile);
   const featurePrompt = FEATURE_PROMPTS[feature] || "";
-  return [BASE_VOICE, context, featurePrompt].filter(Boolean).join("\n\n");
+  const knowledge = buildKnowledgeContext(feature);
+  return [BASE_VOICE, context, featurePrompt, knowledge].filter(Boolean).join("\n\n");
 }
 
 // Sync version for when onboarding is already loaded (avoids extra fetch)
 export function buildSystemPromptSync(feature, onboarding, profile) {
   const context = buildContextBlock(onboarding, profile);
   const featurePrompt = FEATURE_PROMPTS[feature] || "";
-  return [BASE_VOICE, context, featurePrompt].filter(Boolean).join("\n\n");
+  const knowledge = buildKnowledgeContext(feature);
+  return [BASE_VOICE, context, featurePrompt, knowledge].filter(Boolean).join("\n\n");
 }
