@@ -4,6 +4,166 @@ import { db } from "../lib/firebase";
 import { collection, getDocs, orderBy, query } from "firebase/firestore";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, RadarChart, Radar, PolarGrid, PolarAngleAxis } from "recharts";
 import { getLevelInfo, LEVELS, HABIT_CATEGORIES } from "../data/gameData";
+import { callAI } from "../lib/aiProvider";
+import { useToast } from "../components/Toast";
+
+// ── Export & AI-insights helpers ─────────────────────────────────────────────
+function parseAIJson(text) {
+  const stripped = text.replace(/```json|```/g, "").trim();
+  const match = stripped.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error("No JSON found in response");
+  return JSON.parse(match[0]);
+}
+
+function checkinStats(c) {
+  const vals  = Object.values(c.habits || {});
+  const done  = vals.filter(Boolean).length;
+  const total = vals.length;
+  const pct   = total ? Math.round((done / total) * 100) : 0;
+  return { done, total, pct };
+}
+
+function downloadBlob(content, filename, mime) {
+  const blob = new Blob([content], { type: mime });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function exportCSV(checkins) {
+  const headers = ["Date", "XP Gained", "Habits Completed", "Total Habits", "Completion %"];
+  const rows = checkins.map(c => {
+    const { done, total, pct } = checkinStats(c);
+    return [c.date, c.xpGained || 0, done, total, pct];
+  });
+  const csv = [headers, ...rows].map(r => r.join(",")).join("\n");
+  downloadBlob(csv, `grind-checkins-${new Date().toISOString().split("T")[0]}.csv`, "text/csv");
+}
+
+async function exportPDF(profile, checkins, li, insights) {
+  const { jsPDF } = await import("jspdf");
+  const doc = new jsPDF();
+  const pageH = doc.internal.pageSize.getHeight();
+  let y = 20;
+  const nl = (n = 7) => { y += n; if (y > pageH - 20) { doc.addPage(); y = 20; } };
+
+  doc.setFont(undefined, "bold"); doc.setFontSize(22);
+  doc.text("⚡ GRIND Progress Report", 14, y); nl(10);
+  doc.setFont(undefined, "normal"); doc.setFontSize(11);
+  doc.text(`Generated ${new Date().toLocaleDateString()} for ${profile?.displayName || "you"}`, 14, y); nl(12);
+
+  doc.setFont(undefined, "bold"); doc.setFontSize(14); doc.text("Summary", 14, y); nl(8);
+  doc.setFont(undefined, "normal"); doc.setFontSize(11);
+  [
+    `Level ${profile?.level || 1} — ${li?.current?.title || "Rookie"}`,
+    `Total XP: ${profile?.xp || 0}`,
+    `Current streak: ${profile?.streak || 0} day(s)`,
+    `Best streak: ${profile?.longestStreak || 0} day(s)`,
+    `Total check-ins logged: ${checkins.length}`,
+  ].forEach(line => { doc.text(`•  ${line}`, 14, y); nl(); });
+
+  nl(4);
+  doc.setFont(undefined, "bold"); doc.setFontSize(14); doc.text("Recent Check-ins", 14, y); nl(8);
+  doc.setFont(undefined, "normal"); doc.setFontSize(10);
+  [...checkins].slice(-20).reverse().forEach(c => {
+    const { done, total, pct } = checkinStats(c);
+    doc.text(`${c.date}  —  ${done}/${total} habits (${pct}%)  ·  +${c.xpGained || 0} XP`, 14, y);
+    nl(6);
+  });
+
+  if (insights?.length) {
+    nl(4);
+    doc.setFont(undefined, "bold"); doc.setFontSize(14); doc.text("AI Insights", 14, y); nl(8);
+    doc.setFont(undefined, "normal"); doc.setFontSize(10);
+    insights.forEach(ins => {
+      doc.splitTextToSize(`•  ${ins}`, 180).forEach(line => { doc.text(line, 14, y); nl(6); });
+    });
+  }
+
+  doc.save(`grind-report-${new Date().toISOString().split("T")[0]}.pdf`);
+}
+
+async function generateInsights(checkins, profile) {
+  const recent = [...checkins].slice(-30).map(c => {
+    const { done, total } = checkinStats(c);
+    return `${c.date}: ${done}/${total} habits, +${c.xpGained || 0} XP`;
+  }).join("\n");
+
+  const userMessage = `Here is a user's recent habit-tracking history (most recent ${Math.min(30, checkins.length)} entries, oldest first):
+${recent}
+
+Profile: Level ${profile?.level || 1}, ${profile?.xp || 0} total XP, ${profile?.streak || 0}-day current streak, ${profile?.longestStreak || 0}-day best streak ever.
+
+Generate 4-6 sharp, specific, encouraging-but-honest insights about their patterns — momentum, consistency, day-of-week trends, plateaus, what's working and what isn't. Reference real numbers from the data where possible. Return ONLY valid JSON in this structure, no other text:
+{ "insights": ["...", "..."] }`;
+
+  const text = await callAI({
+    system: "You are a perceptive, data-driven habit coach. Find genuine patterns rather than generic platitudes — be specific and reference the actual numbers given. Output only valid JSON, no markdown fencing.",
+    userMessage,
+    maxTokens: 700,
+  });
+  return parseAIJson(text).insights || [];
+}
+
+function ExportSection({ profile, checkins, li }) {
+  const toast = useToast();
+  const [insights,  setInsights]  = useState(null);
+  const [thinking,  setThinking]  = useState(false);
+  const [building,  setBuilding]  = useState(false);
+
+  async function handleInsights() {
+    if (thinking) return;
+    setThinking(true);
+    try {
+      const list = await generateInsights(checkins, profile);
+      setInsights(list);
+      toast("Insights generated! 🧠", "success");
+    } catch (e) {
+      if (e.message === "NO_KEY") toast("No API key set — go to Settings ⚙️", "error");
+      else toast("Failed to generate insights — try again", "error");
+      console.error(e);
+    } finally { setThinking(false); }
+  }
+
+  async function handlePDF() {
+    if (building) return;
+    setBuilding(true);
+    try {
+      await exportPDF(profile, checkins, li, insights);
+      toast("PDF report downloaded 📄", "success");
+    } catch (e) { toast("PDF export failed", "error"); console.error(e); }
+    finally { setBuilding(false); }
+  }
+
+  return (
+    <div className="section-card">
+      <h3 className="section-title">📤 Export & AI Insights</h3>
+      <p style={{ fontSize:13, color:"var(--muted2)", marginBottom:16, lineHeight:1.5 }}>
+        Download your progress as a spreadsheet or polished report — or have the AI dig through
+        your check-in history for real patterns and honest feedback.
+      </p>
+      <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
+        <button className="btn-secondary" onClick={() => exportCSV(checkins)} disabled={!checkins.length}>
+          ⬇️ Export CSV
+        </button>
+        <button className="btn-secondary" onClick={handlePDF} disabled={building || !checkins.length}>
+          {building ? "Building…" : "📄 Export PDF Report"}
+        </button>
+        <button className="btn-primary" onClick={handleInsights} disabled={thinking || checkins.length < 3} style={{ width:"auto", padding:"10px 20px" }}>
+          {thinking ? "🧠 Thinking…" : "✨ Generate AI Insights"}
+        </button>
+      </div>
+      {checkins.length < 3 && <p style={{ fontSize:12, color:"var(--muted)", marginTop:10 }}>Log a few more check-ins to unlock AI insights.</p>}
+      {insights?.length > 0 && (
+        <div className="ai-insights-list">
+          {insights.map((ins, i) => <div key={i} className="ai-insight-item">💡 {ins}</div>)}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function Stats() {
   const { user, profile } = useAuth();
@@ -58,6 +218,8 @@ export default function Stats() {
           </div>
         ))}
       </div>
+
+      <ExportSection profile={profile} checkins={checkins} li={li} />
 
       {/* Level journey */}
       {li && (

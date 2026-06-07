@@ -324,6 +324,9 @@ html, body, #root { height: 100%; background: var(--bg); color: var(--text); fon
 .bsc-label { font-size:12px; color:var(--muted); margin-top:4px; text-transform:uppercase; letter-spacing:.5px; }
 .section-card { background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:22px; margin-bottom:20px; }
 .section-title { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--muted); margin-bottom:16px; }
+
+.ai-insights-list { display:flex; flex-direction:column; gap:10px; margin-top:18px; }
+.ai-insight-item { background:var(--bg3); border:1px solid var(--border2); border-left:3px solid var(--accent); border-radius:8px; padding:12px 16px; font-size:13px; line-height:1.55; color:var(--text); }
 .charts-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
 .levels-track { display:flex; justify-content:space-between; }
 .level-step { display:flex; flex-direction:column; align-items:center; gap:4px; opacity:.3; transition:opacity .3s; }
