@@ -3,13 +3,13 @@
 importScripts("https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js");
 importScripts("https://www.gstatic.com/firebasejs/10.7.0/firebase-messaging-compat.js");
 
-// NOTE: replace with your config (these are public-safe values)
+// personal-suite-ca587 (GRIND Web App) — public-safe values
 firebase.initializeApp({
-  apiKey: "REPLACE_ME",
-  authDomain: "REPLACE_ME",
-  projectId: "REPLACE_ME",
-  messagingSenderId: "REPLACE_ME",
-  appId: "REPLACE_ME",
+  apiKey: "AIzaSyAtRLYEN30W1eL4EwiRGN4x_oOzI-HlJZQ",
+  authDomain: "personal-suite-ca587.firebaseapp.com",
+  projectId: "personal-suite-ca587",
+  messagingSenderId: "894530323591",
+  appId: "1:894530323591:web:50666cc948e39e0dfc6422",
 });
 
 const messaging = firebase.messaging();
