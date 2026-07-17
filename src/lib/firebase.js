@@ -22,7 +22,30 @@ export const loginWithGoogle = () => signInWithPopup(auth, provider);
 export const logout          = () => signOut(auth);
 export const onAuth          = (cb) => onAuthStateChanged(auth, cb);
 
+// Unified cross-app identity doc — shared with hardware-tracker and ARIA.
+// See ../../../personal-suite-schema.md §2. Written on every login: creates
+// on first sign-in, refreshes lastSeenAt + apps.grind on every subsequent one.
+async function upsertUnifiedUser(user) {
+  const ref  = doc(db, "users", user.uid);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) {
+    await setDoc(ref, {
+      uid: user.uid, email: user.email || null,
+      displayName: user.displayName, photoURL: user.photoURL,
+      customPhotoURL: null,
+      apps: { grind: true, hardware: false, aria: false },
+      createdAt: serverTimestamp(), lastSeenAt: serverTimestamp(),
+    });
+  } else {
+    await updateDoc(ref, {
+      displayName: user.displayName, photoURL: user.photoURL,
+      "apps.grind": true, lastSeenAt: serverTimestamp(),
+    });
+  }
+}
+
 export async function getOrCreateUser(user) {
+  await upsertUnifiedUser(user).catch(() => {}); // never block GRIND login on this
   const ref  = doc(db, "grind_users", user.uid);
   const snap = await getDoc(ref);
   if (snap.exists()) return snap.data();
@@ -500,6 +523,20 @@ export const getPublicProfile = async (uid) => {
   return { ...profile, skills };
 };
 
+// Stable per-browser device id, persisted in localStorage. Used so each
+// device gets its own push-token doc instead of one shared `fcmToken` field
+// (which silently overwrote itself on every new device login — see
+// personal-suite-schema.md §2, "devices").
+function getOrCreateDeviceId() {
+  const key = "grind_device_id";
+  let id = localStorage.getItem(key);
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem(key, id);
+  }
+  return id;
+}
+
 // ── Push notifications (FCM) ────────────────────────────────────────────
 // Requires VITE_FIREBASE_VAPID_KEY in .env (Firebase Console → Cloud Messaging → Web Push certificates)
 export async function enablePushNotifications(uid, reminderHour) {
@@ -513,8 +550,14 @@ export async function enablePushNotifications(uid, reminderHour) {
   const token     = await getToken(messaging, { vapidKey });
   if (!token) throw new Error("Could not get FCM token");
 
+  const deviceId = getOrCreateDeviceId();
+  await setDoc(doc(db, "users", uid, "devices", deviceId), {
+    deviceId, label: "Web — " + (navigator.platform || "browser"),
+    platform: "web", pushToken: token, userAgent: navigator.userAgent,
+    lastSeenAt: serverTimestamp(),
+  }, { merge: true });
+
   await updateDoc(doc(db,"grind_users",uid), {
-    fcmToken: token,
     reminderEnabled: true,
     reminderHour: reminderHour ?? 21,
   });
