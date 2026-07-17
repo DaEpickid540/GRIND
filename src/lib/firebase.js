@@ -23,7 +23,7 @@ export const logout          = () => signOut(auth);
 export const onAuth          = (cb) => onAuthStateChanged(auth, cb);
 
 export async function getOrCreateUser(user) {
-  const ref  = doc(db, "users", user.uid);
+  const ref  = doc(db, "grind_users", user.uid);
   const snap = await getDoc(ref);
   if (snap.exists()) return snap.data();
   const profile = {
@@ -39,8 +39,8 @@ export async function getOrCreateUser(user) {
   return profile;
 }
 
-export const getUserProfile    = async (uid) => { const s = await getDoc(doc(db,"users",uid)); return s.exists()?s.data():null; };
-export const updateUserProfile = (uid, data) => updateDoc(doc(db,"users",uid), data);
+export const getUserProfile    = async (uid) => { const s = await getDoc(doc(db,"grind_users",uid)); return s.exists()?s.data():null; };
+export const updateUserProfile = (uid, data) => updateDoc(doc(db,"grind_users",uid), data);
 
 export async function submitCheckIn(uid, habits, todayStr, habitCategories) {
   const profile = await getUserProfile(uid);
@@ -73,7 +73,7 @@ export async function submitCheckIn(uid, habits, todayStr, habitCategories) {
   const newLevel = Math.floor(Math.sqrt(newXP / 100)) + 1;
   const levelUp  = newLevel > (profile.level||1);
 
-  await updateDoc(doc(db,"users",uid), {
+  await updateDoc(doc(db,"grind_users",uid), {
     streak: newStreak,
     longestStreak: Math.max(newStreak, profile.longestStreak||0),
     lastCheckIn: todayStr,
@@ -81,7 +81,7 @@ export async function submitCheckIn(uid, habits, todayStr, habitCategories) {
     level: newLevel,
     coins: newCoins,
   });
-  await setDoc(doc(db,"users",uid,"checkins",todayStr), {
+  await setDoc(doc(db,"grind_users",uid,"checkins",todayStr), {
     habits, xpGained, streakBonus, streak: newStreak, timestamp: serverTimestamp(),
   });
 
@@ -94,7 +94,7 @@ export async function submitCheckIn(uid, habits, todayStr, habitCategories) {
 
 // Fetch a single day's check-in doc (used for re-check-in pre-population)
 export const getTodayCheckIn = async (uid, dateStr) => {
-  const snap = await getDoc(doc(db, "users", uid, "checkins", dateStr));
+  const snap = await getDoc(doc(db, "grind_users", uid, "checkins", dateStr));
   return snap.exists() ? snap.data() : null;
 };
 
@@ -109,7 +109,7 @@ export async function updateCheckIn(uid, allHabits, previousHabits, todayStr, ha
 
   const [profile, checkinSnap] = await Promise.all([
     getUserProfile(uid),
-    getDoc(doc(db, "users", uid, "checkins", todayStr)),
+    getDoc(doc(db, "grind_users", uid, "checkins", todayStr)),
   ]);
 
   const prevXPGained = checkinSnap.exists() ? (checkinSnap.data().xpGained || 0) : 0;
@@ -122,8 +122,8 @@ export async function updateCheckIn(uid, allHabits, previousHabits, todayStr, ha
   const newCoins    = (profile.coins || 0) + coinsEarned;
 
   await Promise.all([
-    updateDoc(doc(db, "users", uid), { xp: newXP, level: newLevel, coins: newCoins }),
-    updateDoc(doc(db, "users", uid, "checkins", todayStr), {
+    updateDoc(doc(db, "grind_users", uid), { xp: newXP, level: newLevel, coins: newCoins }),
+    updateDoc(doc(db, "grind_users", uid, "checkins", todayStr), {
       habits: allHabits,
       xpGained: prevXPGained + xpGained,
       lastUpdated: serverTimestamp(),
@@ -137,20 +137,20 @@ export async function updateCheckIn(uid, allHabits, previousHabits, todayStr, ha
 
 export const setExcuse   = async (uid, reason, days=1) => {
   const until = new Date(); until.setDate(until.getDate()+days);
-  await updateDoc(doc(db,"users",uid), { excuseActive: { reason, until: until.toISOString().split("T")[0] } });
+  await updateDoc(doc(db,"grind_users",uid), { excuseActive: { reason, until: until.toISOString().split("T")[0] } });
 };
-export const clearExcuse = (uid) => updateDoc(doc(db,"users",uid), { excuseActive: null });
+export const clearExcuse = (uid) => updateDoc(doc(db,"grind_users",uid), { excuseActive: null });
 // GymRecords now live in a subcollection (users/{uid}/gymRecords/{docId}) instead of
 // an array on the user document. Arrays hit Firestore's 1MB doc limit with heavy use.
 export const addGymRecord = (uid, record) =>
-  setDoc(doc(collection(db, "users", uid, "gymRecords")), {
+  setDoc(doc(collection(db, "grind_users", uid, "gymRecords")), {
     ...record,
     createdAt: serverTimestamp(),
   });
 
 export const getGymRecords = async (uid, limitN = 500) => {
   const q = query(
-    collection(db, "users", uid, "gymRecords"),
+    collection(db, "grind_users", uid, "gymRecords"),
     orderBy("createdAt", "desc"),
     limit(limitN)
   );
@@ -159,14 +159,14 @@ export const getGymRecords = async (uid, limitN = 500) => {
 };
 
 export const deleteGymRecord = (uid, recordId) =>
-  deleteDoc(doc(db, "users", uid, "gymRecords", recordId));
+  deleteDoc(doc(db, "grind_users", uid, "gymRecords", recordId));
 // ── Custom habits / excuses (user-specific, overrides defaults in gameData.js) ─
 export const saveCustomHabits  = (uid, categories) =>
-  updateDoc(doc(db,"users",uid), { customHabits: categories });
+  updateDoc(doc(db,"grind_users",uid), { customHabits: categories });
 
 // Pass null to clear and revert to defaults
 export const saveCustomExcuses = (uid, excuses) =>
-  updateDoc(doc(db,"users",uid), { customExcuses: excuses });
+  updateDoc(doc(db,"grind_users",uid), { customExcuses: excuses });
 
 // ── Store / coin system ─────────────────────────────────────────────────────
 export async function purchaseItem(uid, item) {
@@ -175,43 +175,43 @@ export async function purchaseItem(uid, item) {
   if (coins < item.cost)              throw new Error("Not enough coins");
   const owned   = profile?.ownedItems || [];
   if (owned.includes(item.id))        throw new Error("Already owned");
-  await updateDoc(doc(db,"users",uid), {
+  await updateDoc(doc(db,"grind_users",uid), {
     coins:      coins - item.cost,
     ownedItems: arrayUnion(item.id),
   });
 }
 
 export const equipItem   = (uid, slot, itemId) =>
-  updateDoc(doc(db,"users",uid), { [`equippedItems.${slot}`]: itemId });
+  updateDoc(doc(db,"grind_users",uid), { [`equippedItems.${slot}`]: itemId });
 
 export const unequipItem = (uid, slot) =>
-  updateDoc(doc(db,"users",uid), { [`equippedItems.${slot}`]: null });
+  updateDoc(doc(db,"grind_users",uid), { [`equippedItems.${slot}`]: null });
 
-export const saveWeeklyPlan = (uid, plan) => updateDoc(doc(db,"users",uid), { weeklyPlan: plan, planTasksDone: {} });
-export const togglePlanTask = (uid, key, current) => updateDoc(doc(db,"users",uid), { [`planTasksDone.${key}`]: !current });
+export const saveWeeklyPlan = (uid, plan) => updateDoc(doc(db,"grind_users",uid), { weeklyPlan: plan, planTasksDone: {} });
+export const togglePlanTask = (uid, key, current) => updateDoc(doc(db,"grind_users",uid), { [`planTasksDone.${key}`]: !current });
 
 export async function getLeaderboard(n=30) {
-  const q = query(collection(db,"users"), orderBy("xp","desc"), limit(n));
+  const q = query(collection(db,"grind_users"), orderBy("xp","desc"), limit(n));
   const s = await getDocs(q);
   return s.docs.map(d => d.data());
 }
 
 export async function getCheckinHistory(uid) {
-  const q = query(collection(db,"users",uid,"checkins"), orderBy("timestamp","asc"));
+  const q = query(collection(db,"grind_users",uid,"checkins"), orderBy("timestamp","asc"));
   const s = await getDocs(q);
   return s.docs.map(d => ({ date: d.id, ...d.data() }));
 }
 
 // ── Real-time leaderboard ──────────────────────────────────────────────
 export const watchLeaderboard = (n=30, cb) => {
-  const q = query(collection(db,"users"), orderBy("xp","desc"), limit(n));
+  const q = query(collection(db,"grind_users"), orderBy("xp","desc"), limit(n));
   return onSnapshot(q, snap => cb(snap.docs.map(d => d.data())));
 };
 
 // ── Challenges (full accept/decline/outcome flow) ──────────────────────
 export const sendChallenge = (fromUid, fromName, toUid, toName, type, days=7) => {
   const ends = new Date(); ends.setDate(ends.getDate()+days);
-  return setDoc(doc(db,"challenges",`${fromUid}_${toUid}_${Date.now()}`), {
+  return setDoc(doc(db,"grind_challenges",`${fromUid}_${toUid}_${Date.now()}`), {
     from:fromUid, fromName, to:toUid, toName, type, days,
     participants: [fromUid, toUid],
     status:"pending",
@@ -223,19 +223,19 @@ export const sendChallenge = (fromUid, fromName, toUid, toName, type, days=7) =>
 
 export const watchMyChallenges = (uid, cb) => {
   // Challenges where I'm involved (either side)
-  const q = query(collection(db,"challenges"), where("participants","array-contains",uid));
+  const q = query(collection(db,"grind_challenges"), where("participants","array-contains",uid));
   return onSnapshot(q, snap => cb(snap.docs.map(d => ({ id:d.id, ...d.data() }))));
 };
 
 // Fallback fetch (challenges use participants array for querying)
 export const getMyChallenges = async (uid) => {
-  const q = query(collection(db,"challenges"), where("participants","array-contains",uid));
+  const q = query(collection(db,"grind_challenges"), where("participants","array-contains",uid));
   const s = await getDocs(q);
   return s.docs.map(d => ({ id:d.id, ...d.data() }));
 };
 
 export const acceptChallenge = async (challengeId) => {
-  const ref  = doc(db,"challenges",challengeId);
+  const ref  = doc(db,"grind_challenges",challengeId);
   const snap = await getDoc(ref);
   if (!snap.exists()) return;
   const c = snap.data();
@@ -249,11 +249,11 @@ export const acceptChallenge = async (challengeId) => {
 };
 
 export const declineChallenge = (challengeId) =>
-  updateDoc(doc(db,"challenges",challengeId), { status:"declined" });
+  updateDoc(doc(db,"grind_challenges",challengeId), { status:"declined" });
 
 // Resolve a finished challenge — compute winner from XP gained
 export const resolveChallenge = async (challengeId) => {
-  const ref  = doc(db,"challenges",challengeId);
+  const ref  = doc(db,"grind_challenges",challengeId);
   const snap = await getDoc(ref);
   if (!snap.exists()) return null;
   const c = snap.data();
@@ -271,7 +271,7 @@ export const resolveChallenge = async (challengeId) => {
 // guilds; the combined XP gained by every member over the period decides the winner.
 
 export const createGuild = async (uid, displayName, name, emoji = "🛡️") => {
-  const ref = doc(collection(db, "guilds"));
+  const ref = doc(collection(db, "grind_guilds"));
   await setDoc(ref, {
     name, nameLower: name.trim().toLowerCase(), emoji,
     ownerUid: uid,
@@ -283,19 +283,19 @@ export const createGuild = async (uid, displayName, name, emoji = "🛡️") => 
 };
 
 export const watchMyGuild = (uid, cb) => {
-  const q = query(collection(db, "guilds"), where("members", "array-contains", uid), limit(1));
+  const q = query(collection(db, "grind_guilds"), where("members", "array-contains", uid), limit(1));
   return onSnapshot(q, snap => cb(snap.empty ? null : { id: snap.docs[0].id, ...snap.docs[0].data() }));
 };
 
 export const findGuildByName = async (name) => {
-  const q = query(collection(db, "guilds"), where("nameLower", "==", name.trim().toLowerCase()), limit(1));
+  const q = query(collection(db, "grind_guilds"), where("nameLower", "==", name.trim().toLowerCase()), limit(1));
   const s = await getDocs(q);
   if (s.empty) return null;
   return { id: s.docs[0].id, ...s.docs[0].data() };
 };
 
 export const sendGuildInvite = (guildId, guildName, guildEmoji, fromUid, fromName, toUid, toName) =>
-  setDoc(doc(db, "guildInvites", `${guildId}_${toUid}`), {
+  setDoc(doc(db, "grind_guildInvites", `${guildId}_${toUid}`), {
     guildId, guildName, guildEmoji,
     from: fromUid, fromName, to: toUid, toName,
     status: "pending",
@@ -303,23 +303,23 @@ export const sendGuildInvite = (guildId, guildName, guildEmoji, fromUid, fromNam
   });
 
 export const watchGuildInvites = (uid, cb) => {
-  const q = query(collection(db, "guildInvites"), where("to", "==", uid), where("status", "==", "pending"));
+  const q = query(collection(db, "grind_guildInvites"), where("to", "==", uid), where("status", "==", "pending"));
   return onSnapshot(q, snap => cb(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
 };
 
 export const acceptGuildInvite = async (invite) => {
-  await updateDoc(doc(db, "guilds", invite.guildId), {
+  await updateDoc(doc(db, "grind_guilds", invite.guildId), {
     members: arrayUnion(invite.to),
     [`memberNames.${invite.to}`]: invite.toName,
   });
-  await updateDoc(doc(db, "guildInvites", invite.id), { status: "accepted" });
+  await updateDoc(doc(db, "grind_guildInvites", invite.id), { status: "accepted" });
 };
 
 export const declineGuildInvite = (inviteId) =>
-  updateDoc(doc(db, "guildInvites", inviteId), { status: "declined" });
+  updateDoc(doc(db, "grind_guildInvites", inviteId), { status: "declined" });
 
 export const leaveGuild = async (guildId, uid) => {
-  const ref  = doc(db, "guilds", guildId);
+  const ref  = doc(db, "grind_guilds", guildId);
   const snap = await getDoc(ref);
   if (!snap.exists()) return;
   const g = snap.data();
@@ -344,7 +344,7 @@ async function getGuildXPSnapshot(members = []) {
 
 export const sendGuildChallenge = async (fromGuild, toGuild, fromUid, fromName, days = 7) => {
   const ends = new Date(); ends.setDate(ends.getDate() + days);
-  return setDoc(doc(collection(db, "guildChallenges")), {
+  return setDoc(doc(collection(db, "grind_guildChallenges")), {
     fromGuildId: fromGuild.id, fromGuildName: fromGuild.name, fromGuildEmoji: fromGuild.emoji || "🛡️",
     fromMembers: fromGuild.members || [], fromMemberNames: fromGuild.memberNames || {},
     toGuildId: toGuild.id, toGuildName: toGuild.name, toGuildEmoji: toGuild.emoji || "🛡️",
@@ -359,12 +359,12 @@ export const sendGuildChallenge = async (fromGuild, toGuild, fromUid, fromName, 
 };
 
 export const watchMyGuildChallenges = (guildId, cb) => {
-  const q = query(collection(db, "guildChallenges"), where("guildParticipants", "array-contains", guildId));
+  const q = query(collection(db, "grind_guildChallenges"), where("guildParticipants", "array-contains", guildId));
   return onSnapshot(q, snap => cb(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
 };
 
 export const acceptGuildChallenge = async (challengeId) => {
-  const ref  = doc(db, "guildChallenges", challengeId);
+  const ref  = doc(db, "grind_guildChallenges", challengeId);
   const snap = await getDoc(ref);
   if (!snap.exists()) return;
   const c = snap.data();
@@ -375,10 +375,10 @@ export const acceptGuildChallenge = async (challengeId) => {
 };
 
 export const declineGuildChallenge = (challengeId) =>
-  updateDoc(doc(db, "guildChallenges", challengeId), { status: "declined" });
+  updateDoc(doc(db, "grind_guildChallenges", challengeId), { status: "declined" });
 
 export const resolveGuildChallenge = async (challengeId) => {
-  const ref  = doc(db, "guildChallenges", challengeId);
+  const ref  = doc(db, "grind_guildChallenges", challengeId);
   const snap = await getDoc(ref);
   if (!snap.exists()) return null;
   const c = snap.data();
@@ -399,44 +399,44 @@ export const resolveGuildChallenge = async (challengeId) => {
 export const uploadProfilePhoto = async (uid, file) => {
   const { getStorage, ref: storageRef, uploadBytes, getDownloadURL } = await import("firebase/storage");
   const storage = getStorage(app);
-  const ref  = storageRef(storage, `profilePhotos/${uid}/${Date.now()}_${file.name}`);
+  const ref  = storageRef(storage, `grind/profilePhotos/${uid}/${Date.now()}_${file.name}`);
   await uploadBytes(ref, file);
   const url  = await getDownloadURL(ref);
-  await updateDoc(doc(db,"users",uid), { customPhotoURL: url });
+  await updateDoc(doc(db,"grind_users",uid), { customPhotoURL: url });
   return url;
 };
 
 // ── Persist AI results (nutrition + scans) ─────────────────────────────
 export const saveNutritionEntry = (uid, entry) =>
-  setDoc(doc(collection(db,"users",uid,"nutrition")), { ...entry, timestamp:serverTimestamp() });
+  setDoc(doc(collection(db,"grind_users",uid,"nutrition")), { ...entry, timestamp:serverTimestamp() });
 
 export const getNutritionLog = async (uid, dateStr) => {
-  const q = query(collection(db,"users",uid,"nutrition"), orderBy("timestamp","desc"), limit(50));
+  const q = query(collection(db,"grind_users",uid,"nutrition"), orderBy("timestamp","desc"), limit(50));
   const s = await getDocs(q);
   return s.docs.map(d => ({ id:d.id, ...d.data() })).filter(e => !dateStr || e.date===dateStr);
 };
 
 export const saveScanResult = (uid, scanType, result) =>
-  setDoc(doc(collection(db,"users",uid,"scans")), { scanType, result, timestamp:serverTimestamp() });
+  setDoc(doc(collection(db,"grind_users",uid,"scans")), { scanType, result, timestamp:serverTimestamp() });
 
 export const getScanHistory = async (uid, scanType) => {
-  const q = query(collection(db,"users",uid,"scans"), orderBy("timestamp","desc"), limit(20));
+  const q = query(collection(db,"grind_users",uid,"scans"), orderBy("timestamp","desc"), limit(20));
   const s = await getDocs(q);
   return s.docs.map(d => ({ id:d.id, ...d.data() })).filter(e => !scanType || e.scanType===scanType);
 };
 
 // ── Skills ──────────────────────────────────────────────────────────────
 export const getSkills = async (uid) => {
-  const q = query(collection(db,"users",uid,"skills"), orderBy("createdAt","desc"));
+  const q = query(collection(db,"grind_users",uid,"skills"), orderBy("createdAt","desc"));
   const s = await getDocs(q);
   return s.docs.map(d => ({ id:d.id, ...d.data() }));
 };
 
 export const createSkill = (uid, skill) =>
-  setDoc(doc(collection(db,"users",uid,"skills")), { ...skill, xp:0, level:1, totalMinutes:0, sessions:0, createdAt:serverTimestamp() });
+  setDoc(doc(collection(db,"grind_users",uid,"skills")), { ...skill, xp:0, level:1, totalMinutes:0, sessions:0, createdAt:serverTimestamp() });
 
 export const logSkillSession = async (uid, skillId, session) => {
-  const ref  = doc(db,"users",uid,"skills",skillId);
+  const ref  = doc(db,"grind_users",uid,"skills",skillId);
   const snap = await getDoc(ref);
   if (!snap.exists()) return;
   const d     = snap.data();
@@ -445,44 +445,44 @@ export const logSkillSession = async (uid, skillId, session) => {
   const newXP  = (d.xp||0) + Math.round((session.duration||30) / 10) * (session.rating||3);
   const newLvl = Math.floor(Math.sqrt(newXP / 50)) + 1;
   await updateDoc(ref, { totalMinutes:newMin, sessions:newSess, xp:newXP, level:newLvl, lastPracticed:session.date });
-  await setDoc(doc(db,"users",uid,"skills",skillId,"sessions",`${Date.now()}`), { ...session, timestamp:serverTimestamp() });
+  await setDoc(doc(db,"grind_users",uid,"skills",skillId,"sessions",`${Date.now()}`), { ...session, timestamp:serverTimestamp() });
 };
 
 export const getSkillSessions = async (uid, skillId) => {
-  const q = query(collection(db,"users",uid,"skills",skillId,"sessions"), orderBy("timestamp","desc"), limit(30));
+  const q = query(collection(db,"grind_users",uid,"skills",skillId,"sessions"), orderBy("timestamp","desc"), limit(30));
   const s = await getDocs(q);
   return s.docs.map(d => ({ id:d.id, ...d.data() }));
 };
 
 export const deleteSkill = (uid, skillId) =>
-  deleteDoc(doc(db,"users",uid,"skills",skillId));
+  deleteDoc(doc(db,"grind_users",uid,"skills",skillId));
 
 // ── Friends / QR ────────────────────────────────────────────────────────
 export const sendFriendRequest = async (fromUid, toUid) => {
   if (fromUid === toUid) throw new Error("Can't add yourself");
-  await setDoc(doc(db,"friendRequests",`${fromUid}_${toUid}`), {
+  await setDoc(doc(db,"grind_friendRequests",`${fromUid}_${toUid}`), {
     from:fromUid, to:toUid, status:"pending", createdAt:serverTimestamp()
   });
 };
 
 export const acceptFriendRequest = async (reqId, myUid, theirUid) => {
-  await updateDoc(doc(db,"friendRequests",reqId), { status:"accepted" });
-  await updateDoc(doc(db,"users",myUid),   { friends: arrayUnion(theirUid) });
-  await updateDoc(doc(db,"users",theirUid),{ friends: arrayUnion(myUid)   });
+  await updateDoc(doc(db,"grind_friendRequests",reqId), { status:"accepted" });
+  await updateDoc(doc(db,"grind_users",myUid),   { friends: arrayUnion(theirUid) });
+  await updateDoc(doc(db,"grind_users",theirUid),{ friends: arrayUnion(myUid)   });
 };
 
 export const declineFriendRequest = (reqId) =>
-  updateDoc(doc(db,"friendRequests",reqId), { status:"declined" });
+  updateDoc(doc(db,"grind_friendRequests",reqId), { status:"declined" });
 
 export const getIncomingRequests = async (uid) => {
-  const q = query(collection(db,"friendRequests"), where("to","==",uid), where("status","==","pending"));
+  const q = query(collection(db,"grind_friendRequests"), where("to","==",uid), where("status","==","pending"));
   const s = await getDocs(q);
   return s.docs.map(d => ({ id:d.id, ...d.data() }));
 };
 
 // Real-time listener for incoming friend requests
 export const watchIncomingRequests = (uid, cb) => {
-  const q = query(collection(db,"friendRequests"), where("to","==",uid), where("status","==","pending"));
+  const q = query(collection(db,"grind_friendRequests"), where("to","==",uid), where("status","==","pending"));
   return onSnapshot(q, snap => cb(snap.docs.map(d => ({ id:d.id, ...d.data() }))));
 };
 
@@ -495,7 +495,7 @@ export const getFriendsProfiles = async (friendUids) => {
 export const getPublicProfile = async (uid) => {
   const profile  = await getUserProfile(uid);
   if (!profile) return null;
-  const skillsSnap = await getDocs(collection(db,"users",uid,"skills"));
+  const skillsSnap = await getDocs(collection(db,"grind_users",uid,"skills"));
   const skills = skillsSnap.docs.map(d => ({ id:d.id, ...d.data() }));
   return { ...profile, skills };
 };
@@ -513,7 +513,7 @@ export async function enablePushNotifications(uid, reminderHour) {
   const token     = await getToken(messaging, { vapidKey });
   if (!token) throw new Error("Could not get FCM token");
 
-  await updateDoc(doc(db,"users",uid), {
+  await updateDoc(doc(db,"grind_users",uid), {
     fcmToken: token,
     reminderEnabled: true,
     reminderHour: reminderHour ?? 21,
@@ -529,19 +529,19 @@ export async function enablePushNotifications(uid, reminderHour) {
 }
 
 export const updateReminderPrefs = (uid, enabled, hour) =>
-  updateDoc(doc(db,"users",uid), { reminderEnabled: enabled, reminderHour: hour });
+  updateDoc(doc(db,"grind_users",uid), { reminderEnabled: enabled, reminderHour: hour });
 
 // ── Onboarding profile ──────────────────────────────────────────────────
 // Stored at users/{uid}/private/onboarding so it can be locked down separately
 export const saveOnboarding = (uid, data) =>
-  setDoc(doc(db, "users", uid, "private", "onboarding"), {
+  setDoc(doc(db, "grind_users", uid, "private", "onboarding"), {
     ...data,
     completedAt: serverTimestamp(),
     version: 1,
   });
 
 export const getUserOnboarding = async (uid) => {
-  const snap = await getDoc(doc(db, "users", uid, "private", "onboarding"));
+  const snap = await getDoc(doc(db, "grind_users", uid, "private", "onboarding"));
   return snap.exists() ? snap.data() : null;
 };
 
@@ -551,7 +551,7 @@ export const hasCompletedOnboarding = async (uid) => {
 };
 
 export const updateOnboarding = (uid, patch) =>
-  updateDoc(doc(db, "users", uid, "private", "onboarding"), patch);
+  updateDoc(doc(db, "grind_users", uid, "private", "onboarding"), patch);
 
 // ── Classes / Teacher-Coach System ────────────────────────────────────
 // Data model:
@@ -569,17 +569,17 @@ function genJoinCode() {
 }
 
 export const setUserRole = (uid, role) =>
-  updateDoc(doc(db,"users",uid), { role });
+  updateDoc(doc(db,"grind_users",uid), { role });
 
 export const createClass = async (teacherUid, teacherName, { name, description, type }) => {
   const joinCode = genJoinCode();
-  const classRef = doc(collection(db, "classes"));
+  const classRef = doc(collection(db, "grind_classes"));
   await setDoc(classRef, {
     name, description: description||"", type: type||"general",
     teacherUid, teacherName, joinCode,
     memberCount: 0, createdAt: serverTimestamp(),
   });
-  await updateDoc(doc(db,"users",teacherUid), {
+  await updateDoc(doc(db,"grind_users",teacherUid), {
     role: "teacher",
     teachingClasses: arrayUnion(classRef.id),
   });
@@ -588,18 +588,18 @@ export const createClass = async (teacherUid, teacherName, { name, description, 
 
 export const joinClassByCode = async (uid, displayName, photoURL, code) => {
   // Find class by code
-  const q = query(collection(db,"classes"), where("joinCode","==",code.toUpperCase()));
+  const q = query(collection(db,"grind_classes"), where("joinCode","==",code.toUpperCase()));
   const snap = await getDocs(q);
   if (snap.empty) throw new Error("Class not found. Check the code.");
   const classDoc = snap.docs[0];
   const classData = classDoc.data();
 
   // Guard: don't double-add — memberCount would become wrong
-  const memberRef = doc(db,"classes",classDoc.id,"members",uid);
+  const memberRef = doc(db,"grind_classes",classDoc.id,"members",uid);
   const memberSnap = await getDoc(memberRef);
   if (memberSnap.exists()) {
     // Already a member — just make sure user doc is in sync
-    await updateDoc(doc(db,"users",uid), { studentClasses: arrayUnion(classDoc.id) });
+    await updateDoc(doc(db,"grind_users",uid), { studentClasses: arrayUnion(classDoc.id) });
     return { id: classDoc.id, name: classData.name, teacherName: classData.teacherName };
   }
 
@@ -611,33 +611,33 @@ export const joinClassByCode = async (uid, displayName, photoURL, code) => {
   });
 
   // Bump count + record on user
-  await updateDoc(doc(db,"classes",classDoc.id), { memberCount: (classData.memberCount||0)+1 });
-  await updateDoc(doc(db,"users",uid), { studentClasses: arrayUnion(classDoc.id) });
+  await updateDoc(doc(db,"grind_classes",classDoc.id), { memberCount: (classData.memberCount||0)+1 });
+  await updateDoc(doc(db,"grind_users",uid), { studentClasses: arrayUnion(classDoc.id) });
 
   return { id: classDoc.id, name: classData.name, teacherName: classData.teacherName };
 };
 
 export const leaveClass = async (uid, classId) => {
-  await deleteDoc(doc(db,"classes",classId,"members",uid));
-  await updateDoc(doc(db,"users",uid), { studentClasses: arrayRemove(classId) });
-  const cls = await getDoc(doc(db,"classes",classId));
+  await deleteDoc(doc(db,"grind_classes",classId,"members",uid));
+  await updateDoc(doc(db,"grind_users",uid), { studentClasses: arrayRemove(classId) });
+  const cls = await getDoc(doc(db,"grind_classes",classId));
   if (cls.exists()) {
-    await updateDoc(doc(db,"classes",classId), { memberCount: Math.max(0, (cls.data().memberCount||1)-1) });
+    await updateDoc(doc(db,"grind_classes",classId), { memberCount: Math.max(0, (cls.data().memberCount||1)-1) });
   }
 };
 
 export const getClass = async (classId) => {
-  const snap = await getDoc(doc(db,"classes",classId));
+  const snap = await getDoc(doc(db,"grind_classes",classId));
   return snap.exists() ? { id: snap.id, ...snap.data() } : null;
 };
 
 export const watchClassMembers = (classId, cb) => {
-  const q = query(collection(db,"classes",classId,"members"), orderBy("currentXP","desc"));
+  const q = query(collection(db,"grind_classes",classId,"members"), orderBy("currentXP","desc"));
   return onSnapshot(q, snap => cb(snap.docs.map(d => d.data())));
 };
 
 export const getMyClasses = async (uid) => {
-  const userSnap = await getDoc(doc(db,"users",uid));
+  const userSnap = await getDoc(doc(db,"grind_users",uid));
   if (!userSnap.exists()) return { teaching: [], student: [] };
   const u = userSnap.data();
   const teachingIds = u.teachingClasses || [];
@@ -654,26 +654,26 @@ export const getMyClasses = async (uid) => {
 
 export const regenerateJoinCode = async (classId) => {
   const newCode = genJoinCode();
-  await updateDoc(doc(db,"classes",classId), { joinCode: newCode });
+  await updateDoc(doc(db,"grind_classes",classId), { joinCode: newCode });
   return newCode;
 };
 
 export const deleteClass = async (classId, teacherUid) => {
   // Remove from teacher's list
-  await updateDoc(doc(db,"users",teacherUid), { teachingClasses: arrayRemove(classId) });
+  await updateDoc(doc(db,"grind_users",teacherUid), { teachingClasses: arrayRemove(classId) });
   // Delete the class doc (members subcollection will become orphaned but Firebase doesn't
   // recursively delete — for a real prod app, do this with a Cloud Function)
-  await deleteDoc(doc(db,"classes",classId));
+  await deleteDoc(doc(db,"grind_classes",classId));
 };
 
 // Sync member's progress (called after every check-in so teachers see live data)
 export async function syncMemberProgress(uid, profile) {
-  const userSnap = await getDoc(doc(db,"users",uid));
+  const userSnap = await getDoc(doc(db,"grind_users",uid));
   if (!userSnap.exists()) return;
   const u = userSnap.data();
   const classes = u.studentClasses || [];
   await Promise.all(classes.map(classId =>
-    updateDoc(doc(db,"classes",classId,"members",uid), {
+    updateDoc(doc(db,"grind_classes",classId,"members",uid), {
       currentXP: profile.xp || 0,
       currentStreak: profile.streak || 0,
       lastCheckIn: profile.lastCheckIn || null,

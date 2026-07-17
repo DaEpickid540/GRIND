@@ -178,7 +178,7 @@ export default function Stats() {
 
   useEffect(() => {
     if (!user) return;
-    getDocs(query(collection(db,"users",user.uid,"checkins"),orderBy("timestamp","asc")))
+    getDocs(query(collection(db,"grind_users",user.uid,"checkins"),orderBy("timestamp","asc")))
       .then(s=>setCheckins(s.docs.map(d=>({date:d.id,...d.data()}))));
   },[user]);
 
