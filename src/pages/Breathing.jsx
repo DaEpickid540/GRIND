@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { Wind, CheckCircle2 } from "lucide-react";
 import { BREATHING_EXERCISES } from "../data/gameData";
 import { useToast } from "../components/Toast";
 
@@ -16,7 +17,7 @@ export default function Breathing() {
 
   function phaseDur(p) { return selected[p] || 0; }
   const PHASE_LABELS = { inhale:"Inhale", hold1:"Hold", exhale:"Exhale", hold2:"Hold", idle:"Ready", done:"Complete" };
-  const PHASE_COLORS = { inhale:"#4DC9FF", hold1:"#FFD700", exhale:"#00FF88", hold2:"#FF9800", idle:"#333", done:"#00FF88" };
+  const PHASE_COLORS = { inhale:"#4DC9FF", hold1:"var(--accent)", exhale:"#00FF88", hold2:"#FF9800", idle:"#333", done:"#00FF88" };
 
   function stop() {
     stateRef.current.running = false;
@@ -93,7 +94,7 @@ export default function Breathing() {
   return (
     <div className="page-content">
       <div className="page-header">
-        <div><h1 className="page-title">🌬️ Breathing</h1><p className="page-sub">Calm your nervous system and reset your focus</p></div>
+        <div><h1 className="page-title" style={{ display:"inline-flex", alignItems:"center", gap:10 }}><Wind size={32}/> Breathing</h1><p className="page-sub">Calm your nervous system and reset your focus</p></div>
       </div>
 
       <div className="breathing-layout">
@@ -144,7 +145,7 @@ export default function Breathing() {
               <div className="breath-inner">
                 <div className="breath-phase" style={{ color: pColor }}>{PHASE_LABELS[phase]}</div>
                 {counter > 0 && <div className="breath-counter">{counter}</div>}
-                {phase==="done" && <div style={{ fontSize:32 }}>✅</div>}
+                {phase==="done" && <CheckCircle2 size={32} color="#00FF88"/>}
               </div>
             </div>
           </div>

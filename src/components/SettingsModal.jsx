@@ -1,6 +1,11 @@
 import { useState, useEffect } from "react";
+import {
+  Bot, Search, Brain, Dna, Palette, CheckSquare, Gamepad2, Bell, Save, User,
+  Settings as SettingsIcon, X, Eye, EyeOff, Camera, Zap, AlertTriangle,
+  Moon, Sun, Monitor, Pencil, Droplet, Package, Trash2, Flame, Loader2, Award,
+} from "lucide-react";
 import { getSettings, saveSettings, DEFAULT_SETTINGS } from "../lib/userSettings";
-import { PROVIDERS, MODEL_INFO, getModelInfo, getAIConfig, saveAIConfig, clearAIConfig, testKey } from "../lib/aiProvider";
+import { PROVIDERS, MODEL_INFO, getModelInfo, getAIConfig, saveAIConfig, clearAIConfig, testKey, getProviderKey, getConfiguredProviders, clearProviderKey } from "../lib/aiProvider";
 import { SEARCH_PROVIDERS, getSearchConfig, saveSearchConfig, clearSearchConfig } from "../lib/searchProvider";
 import {
   KB_CATEGORIES, KNOWLEDGE_BASE, getKBConfig, getCategoryMultiplier,
@@ -12,20 +17,20 @@ import { logout, updateUserProfile, getCheckinHistory, uploadProfilePhoto, enabl
 import { useToast } from "./Toast";
 
 const TABS = [
-  { id:"ai",       icon:"🤖", label:"AI Provider"    },
-  { id:"search",   icon:"🔍", label:"Search"         },
-  { id:"knowledge",icon:"🧠", label:"Knowledge"      },
-  { id:"profile",  icon:"🧬", label:"Your Profile"   },
-  { id:"appear",   icon:"🎨", label:"Appearance"     },
-  { id:"habits",   icon:"✅", label:"Habits"         },
-  { id:"game",     icon:"🎮", label:"Gamification"   },
-  { id:"notifs",   icon:"🔔", label:"Notifications"  },
-  { id:"data",     icon:"💾", label:"Data"           },
-  { id:"account",  icon:"👤", label:"Account"        },
+  { id:"ai",       icon:Bot,         label:"AI Provider"    },
+  { id:"search",   icon:Search,      label:"Search"         },
+  { id:"knowledge",icon:Brain,       label:"Knowledge"      },
+  { id:"profile",  icon:Dna,         label:"Your Profile"   },
+  { id:"appear",   icon:Palette,     label:"Appearance"     },
+  { id:"habits",   icon:CheckSquare, label:"Habits"         },
+  { id:"game",     icon:Gamepad2,    label:"Gamification"   },
+  { id:"notifs",   icon:Bell,        label:"Notifications"  },
+  { id:"data",     icon:Save,        label:"Data"           },
+  { id:"account",  icon:User,        label:"Account"        },
 ];
 
 const ACCENT_PRESETS = [
-  { label:"Gold",    value:"#FFD700" },
+  { label:"Gold",    value:"#D4A017" },
   { label:"Red",     value:"#FF4D4D" },
   { label:"Blue",    value:"#4DC9FF" },
   { label:"Green",   value:"#00FF88" },
@@ -50,6 +55,7 @@ export default function SettingsModal({ onClose, onResetKey }) {
   const [testing,    setTesting]    = useState(false);
   const [verified,   setVerified]   = useState(false);
   const [keyError,   setKeyError]   = useState("");
+  const [configuredProviders, setConfiguredProviders] = useState(getConfiguredProviders());
 
   // Search tab state
   const searchCfg = getSearchConfig();
@@ -113,9 +119,16 @@ export default function SettingsModal({ onClose, onResetKey }) {
   }
 
   // ── AI tab ──────────────────────────────────────────────────────────────
+  // Switching tabs just changes which provider's form is showing — it doesn't
+  // touch storage. If that provider already has a saved key, pre-fill it
+  // instead of showing a blank field (this is what used to silently wipe
+  // other providers' keys when you clicked Save on a different tab).
   function switchProvider(p) {
-    setAiProvider(p); setAiModel(PROVIDERS[p].defaultModel);
-    setAiKey(""); setVerified(false); setKeyError("");
+    setAiProvider(p);
+    const saved = getProviderKey(p);
+    setAiModel(saved?.model || PROVIDERS[p].defaultModel);
+    setAiKey(saved?.key || "");
+    setVerified(false); setKeyError("");
   }
 
   async function handleTestKey() {
@@ -134,14 +147,20 @@ export default function SettingsModal({ onClose, onResetKey }) {
   function saveAI() {
     if (!aiKey.trim()) { setKeyError("Enter a key first."); return; }
     saveAIConfig({ provider:aiProvider, key:aiKey.trim(), model:aiModel });
+    setConfiguredProviders(getConfiguredProviders());
     toast(`${PROVIDERS[aiProvider].name} saved ✅`, "success");
   }
 
+  // Clears whichever provider's tab is currently open — not every saved key.
+  // Only forces the blocking "connect an AI" modal if that leaves nothing
+  // configured at all; if another provider still has a saved key, the app
+  // just falls back to that one.
   function clearAI() {
-    clearAIConfig();
+    clearProviderKey(aiProvider);
+    setConfiguredProviders(getConfiguredProviders());
     setAiKey(""); setVerified(false); setKeyError("");
-    toast("API key cleared", "warning");
-    onResetKey?.();
+    toast(`${PROVIDERS[aiProvider].name} key cleared`, "warning");
+    if (!getAIConfig()) onResetKey?.();
   }
 
   // ── Search tab ──────────────────────────────────────────────────────────
@@ -176,7 +195,7 @@ export default function SettingsModal({ onClose, onResetKey }) {
         profile,
         checkins: history,
         settings,
-        customHabits,
+        customHabits: activeCategories,
       }, null, 2)], { type:"application/json" });
       const url = URL.createObjectURL(blob);
       const a   = document.createElement("a");
@@ -218,8 +237,8 @@ export default function SettingsModal({ onClose, onResetKey }) {
       <div className="settings-modal">
         {/* Header */}
         <div className="settings-header">
-          <h2 className="settings-title">⚙️ Settings</h2>
-          <button className="settings-close" onClick={onClose}>✕</button>
+          <h2 className="settings-title" style={{ display:"inline-flex", alignItems:"center", gap:8 }}><SettingsIcon size={20}/> Settings</h2>
+          <button className="settings-close" onClick={onClose}><X size={16}/></button>
         </div>
 
         <div className="settings-body">
@@ -227,7 +246,7 @@ export default function SettingsModal({ onClose, onResetKey }) {
           <div className="settings-tabs">
             {TABS.map(t => (
               <button key={t.id} className={`settings-tab ${tab===t.id?"active":""}`} onClick={() => setTab(t.id)}>
-                <span className="stab-icon">{t.icon}</span>
+                <t.icon className="stab-icon" size={16}/>
                 <span className="stab-label">{t.label}</span>
               </button>
             ))}
@@ -253,10 +272,12 @@ export default function SettingsModal({ onClose, onResetKey }) {
                 <div className="provider-grid">
                   {Object.entries(PROVIDERS).map(([id,p]) => (
                     <button key={id} className={`prov-btn ${aiProvider===id?"active":""}`}
-                      style={{ "--pc":p.color }} onClick={() => switchProvider(id)}>
+                      style={{ "--pc":p.color }} onClick={() => switchProvider(id)}
+                      title={configuredProviders.includes(id) && activeAI?.provider!==id ? "Key saved — not currently active" : undefined}>
                       <span style={{ fontSize:24 }}>{p.icon}</span>
                       <span style={{ fontWeight:700, fontSize:13 }}>{p.name}</span>
                       {activeAI?.provider===id && <span className="prov-live"/>}
+                      {activeAI?.provider!==id && configuredProviders.includes(id) && <span className="prov-saved"/>}
                     </button>
                   ))}
                 </div>
@@ -279,19 +300,19 @@ export default function SettingsModal({ onClose, onResetKey }) {
                 {/* Vision capability warning */}
                 {getModelInfo(aiModel).vision === false && (
                   <div className="model-vision-warn">
-                    📷 <strong>No vision support</strong> — AI Scans, Calorie Counter, and Outfit Analyzer
-                    won't work with this model. Pick a <em>👁 vision</em> model above to use those features.
+                    <Camera size={14} style={{ verticalAlign:"-2px" }}/> <strong>No vision support</strong> — AI Scans, Calorie Counter, and Outfit Analyzer
+                    won't work with this model. Pick a <em><Eye size={13} style={{ verticalAlign:"-2px" }}/> vision</em> model above to use those features.
                   </div>
                 )}
                 {getModelInfo(aiModel).tier === "fastest" && (
                   <div className="model-tier-note">
-                    ⚡ Small/fast model — may be less accurate for calorie estimates and detailed outfit analysis.
+                    <Zap size={14} style={{ verticalAlign:"-2px" }}/> Small/fast model — may be less accurate for calorie estimates and detailed outfit analysis.
                     A ★ model gives better results for visual tasks.
                   </div>
                 )}
                 {getModelInfo(aiModel).vision === true && getModelInfo(aiModel).tier === "fast" && (
                   <div className="model-tier-note model-tier-ok">
-                    👁 Vision supported — AI Scans will work. For highest accuracy on nutrition &amp; outfits,
+                    <Eye size={14} style={{ verticalAlign:"-2px" }}/> Vision supported — AI Scans will work. For highest accuracy on nutrition &amp; outfits,
                     a ★ model is recommended.
                   </div>
                 )}
@@ -302,17 +323,17 @@ export default function SettingsModal({ onClose, onResetKey }) {
                     placeholder={prov.placeholder} value={aiKey}
                     onChange={e=>{setAiKey(e.target.value);setVerified(false);setKeyError("");}}
                     onPaste={e=>{e.preventDefault();setAiKey(e.clipboardData.getData("text").trim());setVerified(false);setKeyError("");}}/>
-                  <button className="key-vis" onClick={()=>setShowKey(s=>!s)}>{showKey?"🙈":"👁️"}</button>
+                  <button className="key-vis" onClick={()=>setShowKey(s=>!s)}>{showKey?<EyeOff size={15}/>:<Eye size={15}/>}</button>
                 </div>
                 {prov.keyHint && <div className="key-hint">{prov.keyHint}</div>}
                 {keyError && <div className="serr">{keyError}</div>}
-                {verified && <div className="sok">✅ Key verified and working</div>}
+                {verified && <div className="sok" style={{ display:"flex", alignItems:"center", gap:5 }}><CheckSquare size={13}/> Key verified and working</div>}
 
                 <div className="sprov-note">
                   {aiProvider==="anthropic"  && "Best quality for all features incl. vision. Paid only — no free tier."}
                   {aiProvider==="gemini"     && "Free tier available (15 req/min). All Gemini models support vision."}
                   {aiProvider==="openai"     && "Pay-per-use. GPT-4o and GPT-4o Mini both support vision."}
-                  {aiProvider==="groq"       && "Very generous free tier. Vision only on Llama 3.2 11B Vision model."}
+                  {aiProvider==="groq"       && "Very generous free tier. Vision only on the Qwen3.6 27B model."}
                   {aiProvider==="openrouter" && "100+ models, many free options. Vision depends on chosen model."}
                   {aiProvider==="cloudflare" && "Free tier via Workers AI. Enter Account ID and API Token separated by |."}
                 </div>
@@ -322,7 +343,7 @@ export default function SettingsModal({ onClose, onResetKey }) {
                     {testing?"Testing…":"Test Key"}
                   </button>
                   <button className="sbtn-save" onClick={saveAI} disabled={!aiKey.trim()}>Save</button>
-                  {activeAI && <button className="sbtn-danger" onClick={clearAI}>Clear</button>}
+                  {configuredProviders.includes(aiProvider) && <button className="sbtn-danger" onClick={clearAI}>Clear</button>}
                 </div>
               </div>
             )}
@@ -385,7 +406,7 @@ export default function SettingsModal({ onClose, onResetKey }) {
                         placeholder="Paste your API key…" value={searchKey}
                         onChange={e => setSearchKey(e.target.value)}
                         onPaste={e => { e.preventDefault(); setSearchKey(e.clipboardData.getData("text").trim()); }}/>
-                      <button className="key-vis" onClick={() => setShowSearchKey(s=>!s)}>{showSearchKey?"🙈":"👁️"}</button>
+                      <button className="key-vis" onClick={() => setShowSearchKey(s=>!s)}>{showSearchKey?<EyeOff size={15}/>:<Eye size={15}/>}</button>
                     </div>
                     <div className="key-hint">
                       {searchProv.keyHelp}{" "}
@@ -426,13 +447,13 @@ export default function SettingsModal({ onClose, onResetKey }) {
                 <label className="slabel">Theme</label>
                 <div className="seg-ctrl">
                   {[
-                    { id:"dark",  label:"🌙 Dark"  },
-                    { id:"light", label:"☀️ Light" },
-                    { id:"auto",  label:"🖥 Auto"   },
+                    { id:"dark",  icon:Moon,    label:"Dark"  },
+                    { id:"light", icon:Sun,     label:"Light" },
+                    { id:"auto",  icon:Monitor, label:"Auto"   },
                   ].map(t => (
                     <button key={t.id} className={`seg-btn ${(settings.theme||"dark")===t.id?"active":""}`}
-                      onClick={() => update("theme", t.id)}>
-                      {t.label}
+                      onClick={() => update("theme", t.id)} style={{ display:"inline-flex", alignItems:"center", gap:5 }}>
+                      <t.icon size={13}/>{t.label}
                     </button>
                   ))}
                 </div>
@@ -452,7 +473,7 @@ export default function SettingsModal({ onClose, onResetKey }) {
                   <label className="color-custom" title="Custom color">
                     <input type="color" value={settings.accentColor}
                       onChange={e => update("accentColor", e.target.value)}/>
-                    🎨
+                    <Palette size={16}/>
                   </label>
                 </div>
 
@@ -507,8 +528,8 @@ export default function SettingsModal({ onClose, onResetKey }) {
                 <p className="sform-sub" style={{ marginBottom:10 }}>
                   To add, edit, or remove categories and habits, use the Customize button on the Today page.
                 </p>
-                <button className="sbtn-save" onClick={onClose} style={{ alignSelf:"flex-start" }}>
-                  ✏️ Go to Today → Customize
+                <button className="sbtn-save" onClick={onClose} style={{ alignSelf:"flex-start", display:"inline-flex", alignItems:"center", gap:6 }}>
+                  <Pencil size={13}/> Go to Today → Customize
                 </button>
               </div>
             )}
@@ -590,12 +611,12 @@ export default function SettingsModal({ onClose, onResetKey }) {
                 )}
 
                 <div className="notif-note">
-                  <span>⚠️</span>
+                  <AlertTriangle size={16}/>
                   <span>Browser notifications require you to grant permission. GRIND will request this the first time a reminder fires. Mobile PWA install required for background reminders.</span>
                 </div>
 
                 <div className="sdivider"/>
-                <div className="sform-title" style={{ fontSize:14 }}>💧 Health Reminders</div>
+                <div className="sform-title" style={{ fontSize:14, display:"flex", alignItems:"center", gap:6 }}><Droplet size={15}/> Health Reminders</div>
                 <p className="sform-sub">Active while the app is open. Configure intervals below.</p>
                 <HealthReminders toast={toast}/>
               </div>
@@ -608,7 +629,7 @@ export default function SettingsModal({ onClose, onResetKey }) {
                 <p className="sform-sub">Export or manage your GRIND data.</p>
 
                 <div className="data-card">
-                  <div className="data-card-icon">📦</div>
+                  <div className="data-card-icon"><Package size={28}/></div>
                   <div>
                     <div style={{ fontWeight:700, fontSize:15 }}>Export All Data</div>
                     <div style={{ fontSize:13, color:"#888", marginTop:2 }}>
@@ -624,7 +645,7 @@ export default function SettingsModal({ onClose, onResetKey }) {
                 <div className="sform-title" style={{ fontSize:14, color:"#FF4D4D" }}>Danger Zone</div>
 
                 <div className="data-card danger">
-                  <div className="data-card-icon">🗑️</div>
+                  <div className="data-card-icon"><Trash2 size={28}/></div>
                   <div style={{ flex:1 }}>
                     <div style={{ fontWeight:700, fontSize:15 }}>Reset All Progress</div>
                     <div style={{ fontSize:13, color:"#888", marginTop:2 }}>
@@ -655,7 +676,7 @@ export default function SettingsModal({ onClose, onResetKey }) {
                       ? <img src={profile?.customPhotoURL || user.photoURL} className="acct-avatar" referrerPolicy="no-referrer" alt=""/>
                       : <div className="acct-avatar placeholder">{user?.displayName?.[0]}</div>}
                     <label className="acct-photo-edit" title="Change photo">
-                      {uploadingPhoto ? "⏳" : "📷"}
+                      {uploadingPhoto ? <Loader2 size={12}/> : <Camera size={12}/>}
                       <input type="file" accept="image/*" style={{ display:"none" }} onChange={handlePhotoUpload} disabled={uploadingPhoto}/>
                     </label>
                   </div>
@@ -667,14 +688,14 @@ export default function SettingsModal({ onClose, onResetKey }) {
 
                 <div className="stats-mini">
                   {[
-                    ["⚡ XP",     profile?.xp||0],
-                    ["🔥 Streak", profile?.streak||0],
-                    ["🏅 Level",  profile?.level||1],
-                    ["✅ Check-ins", profile?.longestStreak||0],
-                  ].map(([k,v])=>(
+                    [Zap,        "XP",         profile?.xp||0],
+                    [Flame,      "Streak",     profile?.streak||0],
+                    [Award,      "Level",      profile?.level||1],
+                    [CheckSquare,"Check-ins",  profile?.longestStreak||0],
+                  ].map(([Icon,k,v])=>(
                     <div key={k} className="stats-mini-item">
                       <div className="smi-val">{v}</div>
-                      <div className="smi-key">{k}</div>
+                      <div className="smi-key" style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:3 }}><Icon size={10}/> {k}</div>
                     </div>
                   ))}
                 </div>
@@ -683,11 +704,11 @@ export default function SettingsModal({ onClose, onResetKey }) {
 
                 <div className="sform-title" style={{ fontSize:14 }}>Connected Services</div>
                 <div className="service-row">
-                  <span>🔥 Firebase Auth</span>
+                  <span style={{ display:"flex", alignItems:"center", gap:6 }}><Flame size={14}/> Firebase Auth</span>
                   <span className="service-status active">Connected</span>
                 </div>
                 <div className="service-row">
-                  <span>🤖 AI Provider</span>
+                  <span style={{ display:"flex", alignItems:"center", gap:6 }}><Bot size={14}/> AI Provider</span>
                   {getAIConfig()
                     ? <span className="service-status active">{PROVIDERS[getAIConfig().provider]?.name}</span>
                     : <span className="service-status inactive">Not set</span>
@@ -831,7 +852,7 @@ function KnowledgeTab({ toast }) {
                 <div className="kb-fact-meta">
                   <span className="kb-fact-cat">{KB_CATEGORIES[f.category]?.emoji} {KB_CATEGORIES[f.category]?.label}</span>
                   <span className="kb-fact-weight">weight {f.weight}/10</span>
-                  <button className="kb-fact-remove" onClick={() => handleRemove(f.id)} title="Remove this fact">✕</button>
+                  <button className="kb-fact-remove" onClick={() => handleRemove(f.id)} title="Remove this fact"><X size={12}/></button>
                 </div>
                 <div className="kb-fact-text">{f.fact}</div>
                 {f.tags?.length > 0 && (
@@ -928,12 +949,12 @@ function ProfileTab({ user, toast }) {
       <label className="slabel" style={{ marginTop:12 }}>Confidence (1-10)</label>
       <input type="range" min={1} max={10} value={data.confidence||5}
         onChange={e=>update("confidence", +e.target.value)} className="onboard-slider"/>
-      <div style={{ textAlign:"right", color:"#FFD700", fontFamily:"'Bebas Neue',sans-serif", fontSize:18 }}>{data.confidence||5}</div>
+      <div style={{ textAlign:"right", color:"var(--accent)", fontFamily:"'Bebas Neue',sans-serif", fontSize:18 }}>{data.confidence||5}</div>
 
       <label className="slabel" style={{ marginTop:12 }}>Stress (1-10)</label>
       <input type="range" min={1} max={10} value={data.stressLevel||5}
         onChange={e=>update("stressLevel", +e.target.value)} className="onboard-slider"/>
-      <div style={{ textAlign:"right", color:"#FFD700", fontFamily:"'Bebas Neue',sans-serif", fontSize:18 }}>{data.stressLevel||5}</div>
+      <div style={{ textAlign:"right", color:"var(--accent)", fontFamily:"'Bebas Neue',sans-serif", fontSize:18 }}>{data.stressLevel||5}</div>
 
       <label className="slabel" style={{ marginTop:12 }}>Diet</label>
       <select className="sinp" value={data.diet||""} onChange={e=>update("diet", e.target.value)}>

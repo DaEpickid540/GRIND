@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { X, RotateCcw, AlertTriangle, ClipboardList, Tent, Pencil, Trash2 } from "lucide-react";
 import { HABIT_CATEGORIES, EXCUSES } from "../data/gameData";
 
 export default function HabitCustomizer({ categories, excuses, onSaveCategories, onSaveExcuses, onClose }) {
@@ -10,7 +11,7 @@ export default function HabitCustomizer({ categories, excuses, onSaveCategories,
 
   // ── New category form ──────────────────────────────────────────────────
   const [addingCat, setAddingCat] = useState(false);
-  const [newCat,    setNewCat]    = useState({ label: "", icon: "⭐", color: "#FFD700" });
+  const [newCat,    setNewCat]    = useState({ label: "", icon: "⭐", color: "#D4A017" });
 
   // ── New habit form per category ────────────────────────────────────────
   // { [catKey]: { label: "", xp: 10 } }
@@ -52,7 +53,7 @@ export default function HabitCustomizer({ categories, excuses, onSaveCategories,
       ...prev,
       [key]: { label: newCat.label.trim(), icon: newCat.icon || "⭐", color: newCat.color, habits: [] },
     }));
-    setNewCat({ label: "", icon: "⭐", color: "#FFD700" });
+    setNewCat({ label: "", icon: "⭐", color: "#D4A017" });
     setAddingCat(false);
   }
 
@@ -117,20 +118,23 @@ export default function HabitCustomizer({ categories, excuses, onSaveCategories,
               className={`cust-reset-btn ${confirmReset ? "confirm" : ""}`}
               onClick={handleReset}
               title="Reset to default habits"
+              style={{ display:"inline-flex", alignItems:"center", gap:5 }}
             >
-              {confirmReset ? "⚠️ Confirm reset?" : "↺ Reset defaults"}
+              {confirmReset ? <><AlertTriangle size={13}/> Confirm reset?</> : <><RotateCcw size={13}/> Reset defaults</>}
             </button>
-            <button className="cust-close-btn" onClick={onClose} aria-label="Close">✕</button>
+            <button className="cust-close-btn" onClick={onClose} aria-label="Close"><X size={15}/></button>
           </div>
         </div>
 
         {/* Tabs */}
         <div className="cust-tabs">
-          <button className={`cust-tab ${tab === "habits" ? "active" : ""}`} onClick={() => setTab("habits")}>
-            📋 Habits
+          <button className={`cust-tab ${tab === "habits" ? "active" : ""}`} onClick={() => setTab("habits")}
+            style={{ display:"inline-flex", alignItems:"center", gap:6 }}>
+            <ClipboardList size={14}/> Habits
           </button>
-          <button className={`cust-tab ${tab === "excuses" ? "active" : ""}`} onClick={() => setTab("excuses")}>
-            ⛺ Excuses
+          <button className={`cust-tab ${tab === "excuses" ? "active" : ""}`} onClick={() => setTab("excuses")}
+            style={{ display:"inline-flex", alignItems:"center", gap:6 }}>
+            <Tent size={14}/> Excuses
           </button>
         </div>
 
@@ -179,8 +183,8 @@ export default function HabitCustomizer({ categories, excuses, onSaveCategories,
                       <span style={{ fontSize: 18 }}>{cat.icon}</span>
                       <span className="cust-cat-name" style={{ color: cat.color }}>{cat.label}</span>
                       <span className="cust-cat-count">{cat.habits.length} habit{cat.habits.length !== 1 ? "s" : ""}</span>
-                      <button className="cust-icon-btn" onClick={() => setEditCat(key)} title="Edit" aria-label={`Edit ${cat.label}`}>✏️</button>
-                      <button className="cust-icon-btn danger" onClick={() => deleteCategory(key)} title="Delete category" aria-label={`Delete ${cat.label}`}>🗑</button>
+                      <button className="cust-icon-btn" onClick={() => setEditCat(key)} title="Edit" aria-label={`Edit ${cat.label}`}><Pencil size={14}/></button>
+                      <button className="cust-icon-btn danger" onClick={() => deleteCategory(key)} title="Delete category" aria-label={`Delete ${cat.label}`}><Trash2 size={14}/></button>
                     </div>
                   )}
 
@@ -197,7 +201,7 @@ export default function HabitCustomizer({ categories, excuses, onSaveCategories,
                           className="cust-icon-btn danger sm"
                           onClick={() => deleteHabit(key, h.id)}
                           aria-label={`Delete ${h.label}`}
-                        >✕</button>
+                        ><X size={13}/></button>
                       </div>
                     ))}
 
@@ -250,7 +254,7 @@ export default function HabitCustomizer({ categories, excuses, onSaveCategories,
                     onChange={e => setNewCat(p => ({ ...p, color: e.target.value }))}
                   />
                   <button className="cust-btn-sm primary" onClick={addCategory}>Add</button>
-                  <button className="cust-btn-sm" onClick={() => setAddingCat(false)}>✕</button>
+                  <button className="cust-btn-sm" onClick={() => setAddingCat(false)}><X size={13}/></button>
                 </div>
               ) : (
                 <button className="cust-add-section-btn" onClick={() => setAddingCat(true)}>
@@ -274,7 +278,7 @@ export default function HabitCustomizer({ categories, excuses, onSaveCategories,
                     className="cust-icon-btn danger sm"
                     onClick={() => deleteExcuse(ex.id)}
                     aria-label={`Delete ${ex.label}`}
-                  >✕</button>
+                  ><X size={13}/></button>
                 </div>
               ))}
 
@@ -305,7 +309,7 @@ export default function HabitCustomizer({ categories, excuses, onSaveCategories,
                     onKeyDown={e => e.key === "Enter" && addExcuse()}
                   />
                   <button className="cust-btn-sm primary" onClick={addExcuse}>Add</button>
-                  <button className="cust-btn-sm" onClick={() => setAddingExc(false)}>✕</button>
+                  <button className="cust-btn-sm" onClick={() => setAddingExc(false)}><X size={13}/></button>
                 </div>
               ) : (
                 <button className="cust-add-section-btn" onClick={() => setAddingExc(true)}>

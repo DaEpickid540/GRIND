@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { Flame } from "lucide-react";
 import { getPublicProfile } from "../lib/firebase";
 import { getLevelInfo } from "../data/gameData";
 import QRCode from "qrcode";
@@ -16,7 +17,7 @@ export default function PublicProfile({ uid, onBack }) {
   useEffect(() => {
     if (!profile || !shareRef.current) return;
     const url = `${window.location.origin}${window.location.pathname}?profile=${uid}`;
-    QRCode.toCanvas(shareRef.current, url, { width:120, margin:1, color:{ dark:"#FFD700", light:"#111" }});
+    QRCode.toCanvas(shareRef.current, url, { width:120, margin:1, color:{ dark:"#FF3131", light:"#111" }});
   }, [profile]);
 
   if (loading) return <div className="page-content"><div className="loading-card"><div className="spinner"/></div></div>;
@@ -42,8 +43,8 @@ export default function PublicProfile({ uid, onBack }) {
           <h1 className="pub-name">{profile.displayName}</h1>
           <div className="pub-title" style={{ color:li.current.color }}>{li.current.emoji} {li.current.title}</div>
           <div className="pub-stats-row">
-            <div className="pub-stat"><span style={{ color:"#FFD700" }}>{profile.xp||0}</span><span>XP</span></div>
-            <div className="pub-stat"><span style={{ color:"#FF4D4D" }}>🔥 {profile.streak||0}</span><span>streak</span></div>
+            <div className="pub-stat"><span style={{ color:"var(--accent)" }}>{profile.xp||0}</span><span>XP</span></div>
+            <div className="pub-stat"><span style={{ color:"#FF4D4D", display:"inline-flex", alignItems:"center", gap:3 }}><Flame size={13}/> {profile.streak||0}</span><span>streak</span></div>
             <div className="pub-stat"><span style={{ color:"#FF9800" }}>{profile.longestStreak||0}</span><span>best streak</span></div>
           </div>
         </div>
@@ -76,7 +77,7 @@ export default function PublicProfile({ uid, onBack }) {
                   <div style={{ fontWeight:700, fontSize:13 }}>{skill.name}</div>
                   <div style={{ fontSize:11, color:"#888" }}>Lv {skill.level||1} · {Math.round((skill.totalMinutes||0)/60)}h</div>
                 </div>
-                <div style={{ marginLeft:"auto", fontFamily:"'Bebas Neue',sans-serif", fontSize:20, color:"#FFD700" }}>
+                <div style={{ marginLeft:"auto", fontFamily:"'Bebas Neue',sans-serif", fontSize:20, color:"var(--accent)" }}>
                   {skill.xp||0} XP
                 </div>
               </div>

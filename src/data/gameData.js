@@ -27,7 +27,7 @@ export const HABIT_CATEGORIES = {
   productivity: {
     label: "Productivity",
     icon: "📋",
-    color: "#FFD700",
+    color: "#D4A017",
     habits: [
       { id: "deep_work",   label: "Did focused deep work",        xp: 15 },
       { id: "tasks_done",  label: "Completed main tasks",         xp: 10 },
@@ -66,7 +66,7 @@ export const LEVELS = [
   { min: 1000,  num: 4,  title: "Grinder",         color: "#9C27B0", emoji: "⚙️" },
   { min: 2000,  num: 5,  title: "Locked In",       color: "#FF9800", emoji: "🔒" },
   { min: 4000,  num: 6,  title: "Varsity Ready",   color: "#F44336", emoji: "🏅" },
-  { min: 7000,  num: 7,  title: "Elite",           color: "#FFD700", emoji: "⭐" },
+  { min: 7000,  num: 7,  title: "Elite",           color: "#D4A017", emoji: "⭐" },
   { min: 10000, num: 8,  title: "GOAT",            color: "#FF4081", emoji: "🐐" },
 ];
 
@@ -88,7 +88,7 @@ export function getStreakBonus(streak) {
   if (streak >= 100) return { label: "CENTURY 🔥", mult: 3.0, color: "#FF4081" };
   if (streak >= 60)  return { label: "UNSTOPPABLE", mult: 2.5, color: "#FF4D4D" };
   if (streak >= 30)  return { label: "MONTHLY GRIND", mult: 2.0, color: "#FF9800" };
-  if (streak >= 14)  return { label: "2-WEEK LOCK", mult: 1.7, color: "#FFD700" };
+  if (streak >= 14)  return { label: "2-WEEK LOCK", mult: 1.7, color: "#D4A017" };
   if (streak >= 7)   return { label: "WEEK STREAK", mult: 1.5, color: "#00FF88" };
   if (streak >= 3)   return { label: "ON A ROLL", mult: 1.2, color: "#4DC9FF" };
   return { label: "", mult: 1.0, color: "#888" };

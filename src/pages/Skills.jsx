@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Target, BarChart3, Plus, ScrollText, Timer, Calendar, Flame, Star } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { getSkills, createSkill, logSkillSession, getSkillSessions } from "../lib/firebase";
 import { useToast } from "../components/Toast";
@@ -6,7 +7,7 @@ import { useToast } from "../components/Toast";
 const SKILL_ICONS = ["🎸","⚽","🏀","🎾","🥊","🏊","🎯","🎮","🎹","🎨","✍️","📖","🗣️","🤸","🏋️","🧗","🎭","💻","🔧","🎺","🥋","🏄","🚴","🧘","🎻","🎤"];
 const SKILL_CATS  = ["Sport","Music","Art","Academics","Fitness","Tech","Language","Other"];
 
-function LevelRing({ level, xp, maxXP, size=64, color="#FFD700" }) {
+function LevelRing({ level, xp, maxXP, size=64, color="var(--accent)" }) {
   const pct  = maxXP ? Math.min((xp % maxXP) / maxXP * 100, 100) : 0;
   const r    = (size - 6) / 2, circ = 2 * Math.PI * r;
   return (
@@ -99,7 +100,7 @@ export default function Skills() {
   return (
     <div className="page-content">
       <div className="page-header">
-        <div><h1 className="page-title">🎯 Skills</h1><p className="page-sub">Track every skill you're building. Log sessions. Level up.</p></div>
+        <div><h1 className="page-title" style={{ display:"inline-flex", alignItems:"center", gap:10 }}><Target size={32}/> Skills</h1><p className="page-sub">Track every skill you're building. Log sessions. Level up.</p></div>
         <button className="btn-primary" onClick={() => setShowCreate(true)} style={{ width:"auto", padding:"10px 24px" }}>+ New Skill</button>
       </div>
 
@@ -109,7 +110,7 @@ export default function Skills() {
           {loading && <div className="loading-card"><div className="spinner"/></div>}
           {!loading && skills.length===0 && (
             <div className="empty-state-card">
-              <div style={{ fontSize:56 }}>🎯</div>
+              <div style={{ display:"flex", justifyContent:"center" }}><Target size={56}/></div>
               <h3>No skills yet</h3>
               <p>Add a skill you're working on — guitar, basketball, coding, anything.</p>
             </div>
@@ -132,8 +133,8 @@ export default function Skills() {
                   </div>
                 </div>
                 <div style={{ position:"relative", flexShrink:0 }}>
-                  <LevelRing level={skill.level||1} xp={skill.xp||0} maxXP={maxXP} size={52} color="#FFD700"/>
-                  <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontFamily:"'Bebas Neue',sans-serif", color:"#FFD700" }}>{skill.level||1}</div>
+                  <LevelRing level={skill.level||1} xp={skill.xp||0} maxXP={maxXP} size={52} color="var(--accent)"/>
+                  <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontFamily:"'Bebas Neue',sans-serif", color:"var(--accent)" }}>{skill.level||1}</div>
                 </div>
               </div>
             );
@@ -150,9 +151,9 @@ export default function Skills() {
                 <div style={{ fontSize:13, color:"#888" }}>{selected.category} {selected.description && `· ${selected.description}`}</div>
               </div>
               <div className="skill-level-badge">
-                <LevelRing level={selected.level||1} xp={selected.xp||0} maxXP={xpToNextLevel(selected.level||1)} size={72} color="#FFD700"/>
+                <LevelRing level={selected.level||1} xp={selected.xp||0} maxXP={xpToNextLevel(selected.level||1)} size={72} color="var(--accent)"/>
                 <div style={{ position:"absolute", inset:0, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center" }}>
-                  <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:22, color:"#FFD700", lineHeight:1 }}>{selected.level||1}</div>
+                  <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:22, color:"var(--accent)", lineHeight:1 }}>{selected.level||1}</div>
                   <div style={{ fontSize:9, color:"#888" }}>LEVEL</div>
                 </div>
               </div>
@@ -165,20 +166,20 @@ export default function Skills() {
                 <span>{xpToNextLevel(selected.level||1)} XP to Lv {(selected.level||1)+1}</span>
               </div>
               <div className="level-bar-bg">
-                <div className="level-bar-fill" style={{ width:`${((selected.xp||0) % xpToNextLevel(selected.level||1)) / xpToNextLevel(selected.level||1) * 100}%`, background:"#FFD700" }}/>
+                <div className="level-bar-fill" style={{ width:`${((selected.xp||0) % xpToNextLevel(selected.level||1)) / xpToNextLevel(selected.level||1) * 100}%`, background:"var(--accent)" }}/>
               </div>
             </div>
 
             {/* Big stats */}
             <div className="skill-stats-row">
               {[
-                ["⏱", Math.round((selected.totalMinutes||0)/60), "hours"],
-                ["📅", selected.sessions||0, "sessions"],
-                ["🔥", selected.lastPracticed||"—", "last session"],
-              ].map(([icon,val,label]) => (
+                [Timer, Math.round((selected.totalMinutes||0)/60), "hours"],
+                [Calendar, selected.sessions||0, "sessions"],
+                [Flame, selected.lastPracticed||"—", "last session"],
+              ].map(([Icon,val,label]) => (
                 <div key={label} className="skill-stat">
-                  <span style={{ fontSize:20 }}>{icon}</span>
-                  <span style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:28, color:"#FFD700", lineHeight:1 }}>{val}</span>
+                  <Icon size={20}/>
+                  <span style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:28, color:"var(--accent)", lineHeight:1 }}>{val}</span>
                   <span style={{ fontSize:11, color:"#888" }}>{label}</span>
                 </div>
               ))}
@@ -186,9 +187,13 @@ export default function Skills() {
 
             {/* Tabs */}
             <div className="tabs" style={{ marginBottom:16 }}>
-              {["overview","log","history"].map(t => (
-                <button key={t} className={`tab-btn ${tab===t?"active":""}`} onClick={() => setTab(t)}>
-                  {t==="overview"?"📊 Overview":t==="log"?"➕ Log Session":"📜 History"}
+              {[
+                { id:"overview", icon:BarChart3,   label:"Overview" },
+                { id:"log",      icon:Plus,        label:"Log Session" },
+                { id:"history",  icon:ScrollText,  label:"History" },
+              ].map(t => (
+                <button key={t.id} className={`tab-btn ${tab===t.id?"active":""}`} onClick={() => setTab(t.id)} style={{ display:"inline-flex", alignItems:"center", gap:6 }}>
+                  <t.icon size={14}/> {t.label}
                 </button>
               ))}
             </div>
@@ -218,7 +223,7 @@ export default function Skills() {
                 <div className="rating-row">
                   {[1,2,3,4,5].map(r => (
                     <button key={r} className={`rating-btn ${logForm.rating>=r?"active":""}`}
-                      onClick={() => setLogForm(f=>({...f,rating:r}))}>⭐</button>
+                      onClick={() => setLogForm(f=>({...f,rating:r}))}><Star size={18} fill={logForm.rating>=r ? "currentColor" : "none"}/></button>
                   ))}
                   <span style={{ fontSize:12, color:"#888", marginLeft:8 }}>
                     {["","Rough","Okay","Good","Great","🔥 Flow state"][logForm.rating]}
@@ -242,11 +247,11 @@ export default function Skills() {
                     <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
                       <span style={{ fontFamily:"monospace", fontSize:12, color:"#666" }}>{s.date}</span>
                       <div style={{ display:"flex", gap:4 }}>
-                        {Array.from({length:s.rating||3}).map((_,i)=><span key={i} style={{ fontSize:11 }}>⭐</span>)}
+                        {Array.from({length:s.rating||3}).map((_,i)=><Star key={i} size={11} fill="currentColor"/>)}
                       </div>
                     </div>
                     <div style={{ display:"flex", gap:12, fontSize:13, marginBottom:4 }}>
-                      <span style={{ color:"#FFD700" }}>⏱ {s.duration} min</span>
+                      <span style={{ color:"var(--accent)" }}>⏱ {s.duration} min</span>
                       <span style={{ color:"#4DC9FF" }}>+{Math.round((s.duration/10)*(s.rating||3))} XP</span>
                     </div>
                     {s.notes && <div style={{ fontSize:13, color:"#888" }}>{s.notes}</div>}
@@ -257,7 +262,7 @@ export default function Skills() {
           </div>
         ) : (
           <div className="skill-detail-empty">
-            <div style={{ fontSize:64, marginBottom:16 }}>🎯</div>
+            <Target size={64}/>
             <p style={{ color:"#555" }}>Select a skill to see details</p>
           </div>
         )}

@@ -1,15 +1,16 @@
 import { useState } from "react";
+import { Store as StoreIcon, Tag, Medal, Image as ImageIcon, Flame, Coins, Check } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { purchaseItem, equipItem, unequipItem } from "../lib/firebase";
 import { STORE_ITEMS, RARITY_COLORS } from "../data/storeItems";
 import { useToast } from "../components/Toast";
 
 const TABS = [
-  { id:"all",    label:"All"             },
-  { id:"title",  label:"🏷️ Titles"       },
-  { id:"badge",  label:"🎖️ Badges"       },
-  { id:"frame",  label:"🖼️ Frames"       },
-  { id:"streak", label:"🔥 Streak Icons" },
+  { id:"all",    icon:null,    label:"All"          },
+  { id:"title",  icon:Tag,     label:"Titles"       },
+  { id:"badge",  icon:Medal,   label:"Badges"       },
+  { id:"frame",  icon:ImageIcon,label:"Frames"       },
+  { id:"streak", icon:Flame,   label:"Streak Icons" },
 ];
 
 function FramePreview({ display }) {
@@ -70,11 +71,11 @@ export default function Store() {
       {/* ── Header ── */}
       <div className="store-header">
         <div>
-          <h2 className="section-title" style={{ marginBottom: 4 }}>🏪 Store</h2>
+          <h2 className="section-title" style={{ marginBottom: 4, display:"inline-flex", alignItems:"center", gap:8 }}><StoreIcon size={24}/> Store</h2>
           <p className="store-subtitle">Cosmetics earned by actually grinding. Free. Forever.</p>
         </div>
         <div className="store-coin-display">
-          <span className="store-coin-icon">🪙</span>
+          <span className="store-coin-icon"><Coins size={20}/></span>
           <span className="store-coin-amount">{coins.toLocaleString()}</span>
           <span className="store-coin-label">coins</span>
         </div>
@@ -91,8 +92,9 @@ export default function Store() {
             key={t.id}
             className={`store-tab${tab === t.id ? " active" : ""}`}
             onClick={() => setTab(t.id)}
+            style={{ display:"inline-flex", alignItems:"center", gap:6 }}
           >
-            {t.label}
+            {t.icon && <t.icon size={14}/>}{t.label}
           </button>
         ))}
       </div>
@@ -162,7 +164,7 @@ export default function Store() {
                     className={`store-btn${isEquipped ? " store-btn-equipped" : " store-btn-equip"}`}
                     onClick={() => handleEquip(item)}
                   >
-                    {isEquipped ? "✓ Equipped" : "Equip"}
+                    {isEquipped ? <><Check size={14}/> Equipped</> : "Equip"}
                   </button>
                 ) : (
                   <button
@@ -173,7 +175,7 @@ export default function Store() {
                   >
                     {isLoading ? "…" : (
                       <>
-                        <span>🪙</span>
+                        <Coins size={14}/>
                         <span>{item.cost.toLocaleString()}</span>
                       </>
                     )}

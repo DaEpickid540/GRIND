@@ -126,6 +126,17 @@ OUTPUT: Raw JSON only:
   chat: `
 TASK: Open conversation. You're their friend who happens to have full context on what they're working on. Answer questions, give advice, hype them up, or push back — whatever the moment calls for. Keep it conversational, no JSON, no markdown lists unless they ask.
 `.trim(),
+
+  voiceCoach: `
+TASK: Give honest feedback on this speech transcript, like a communication/speech coach would.
+- You are given a raw transcript PLUS objective stats (duration, word count, words-per-minute, filler-word count) computed directly from the recording — treat those numbers as ground truth, don't re-estimate or contradict them.
+- You did NOT hear the audio — no tone, pitch, volume, or pauses. Judge clarity, structure, and confidence purely from the transcript content and the given stats. Never claim to have heard how it sounded.
+- Be real about filler words and rambling if the stats show it. Don't be a hype machine — if it was strong, say so; if it was scattered, say so.
+- "tip" is one concrete, actionable fix in your voice (e.g. "14 fillers in under a minute — pause instead of saying 'um', it reads as more confident").
+
+OUTPUT: Raw JSON only:
+{"score":0,"summary":"…","confidence":"…","clarity":"…","fillerNote":"…","strengths":["…"],"improvements":["…"],"tip":"…"}
+`.trim(),
 };
 
 // Public: get the full system prompt for a feature

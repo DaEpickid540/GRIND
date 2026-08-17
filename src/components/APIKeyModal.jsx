@@ -1,5 +1,6 @@
 // Forced modal shown until user has a valid API key configured
 import { useState } from "react";
+import { Zap, Eye, EyeOff, CheckSquare, BookOpen, Lock } from "lucide-react";
 import { PROVIDERS, saveAIConfig, testKey, getAIConfig } from "../lib/aiProvider";
 import { useToast } from "./Toast";
 
@@ -50,7 +51,7 @@ export default function APIKeyModal({ onDone, onShowTutorial }) {
       <div className="apikey-modal">
         {/* Header */}
         <div className="apikey-header">
-          <div className="apikey-logo">⚡</div>
+          <div className="apikey-logo" style={{ display:"flex", justifyContent:"center" }}><Zap size={32} color="var(--accent)"/></div>
           <h2 className="apikey-title">Connect Your AI</h2>
           <p className="apikey-sub">
             GRIND uses AI for weekly plans, nutrition scanning, and body analysis.<br/>
@@ -107,11 +108,11 @@ export default function APIKeyModal({ onDone, onShowTutorial }) {
                 }}
               />
               <button className="key-eye" onClick={() => setShowKey(s => !s)} title={showKey?"Hide":"Show"}>
-                {showKey ? "🙈" : "👁️"}
+                {showKey ? <EyeOff size={15}/> : <Eye size={15}/>}
               </button>
             </div>
             {error && <div className="key-error">{error}</div>}
-            {verified && <div className="key-ok">✅ Key verified and working</div>}
+            {verified && <div className="key-ok" style={{ display:"flex", alignItems:"center", gap:5 }}><CheckSquare size={13}/> Key verified and working</div>}
           </div>
 
           {/* Provider notes */}
@@ -129,21 +130,21 @@ export default function APIKeyModal({ onDone, onShowTutorial }) {
             {testing ? "Testing…" : "Test Key"}
           </button>
           <button className="btn-primary apikey-save" onClick={handleSave} disabled={!key.trim()}
-            style={{ opacity: key.trim() ? 1 : .4 }}>
-            {verified ? "Save & Continue ✅" : "Skip Test & Save"}
+            style={{ opacity: key.trim() ? 1 : .4, display:"inline-flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+            {verified ? <><CheckSquare size={14}/> Save & Continue</> : "Skip Test & Save"}
           </button>
         </div>
 
         {onShowTutorial && (
           <div style={{ textAlign:"center", padding:"0 32px 12px" }}>
-            <button onClick={onShowTutorial} className="apikey-tutorial-link">
-              📖 New here? See the Setup Guide instead →
+            <button onClick={onShowTutorial} className="apikey-tutorial-link" style={{ display:"inline-flex", alignItems:"center", gap:6 }}>
+              <BookOpen size={13}/> New here? See the Setup Guide instead →
             </button>
           </div>
         )}
 
-        <p className="apikey-disclaimer">
-          🔒 Keys are saved to your browser's localStorage and never leave your device.
+        <p className="apikey-disclaimer" style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:5 }}>
+          <Lock size={11}/> Keys are saved to your browser's localStorage and never leave your device.
         </p>
       </div>
     </div>

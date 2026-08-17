@@ -1,6 +1,7 @@
 // Forced onboarding flow — collects context for the AI to actually know the user.
 // Shows after Google login + API key setup, before they see the app.
 import { useState } from "react";
+import { Flame } from "lucide-react";
 import { saveOnboarding } from "../lib/firebase";
 import { useAuth } from "../hooks/useAuth";
 import { useToast } from "./Toast";
@@ -226,8 +227,8 @@ export default function OnboardingModal({ onDone }) {
           <button className="onboard-back" onClick={() => setStepIdx(i => Math.max(0, i-1))} disabled={isFirst}>← Back</button>
           <button className="onboard-skip-all" onClick={handleSkipAll} disabled={saving}>Skip all for now</button>
           <button className="btn-primary onboard-next" onClick={handleNext}
-            disabled={!canContinue() || saving} style={{ width:"auto", padding:"10px 32px" }}>
-            {saving ? "Saving..." : isLast ? "🔥 Let's Go" : isFirst ? "Start" : "Next →"}
+            disabled={!canContinue() || saving} style={{ width:"auto", padding:"10px 32px", display:"inline-flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+            {saving ? "Saving..." : isLast ? <><Flame size={15}/> Let's Go</> : isFirst ? "Start" : "Next →"}
           </button>
         </div>
       </div>
@@ -291,7 +292,7 @@ function FieldInput({ field, value, onChange, onToggle }) {
       <div className="onboard-field">
         <label className="onboard-label" style={{ display:"flex", justifyContent:"space-between" }}>
           <span>{field.label}</span>
-          <span style={{ color:"#FFD700", fontFamily:"'Bebas Neue',sans-serif", fontSize:18 }}>{v}</span>
+          <span style={{ color:"var(--accent)", fontFamily:"'Bebas Neue',sans-serif", fontSize:18 }}>{v}</span>
         </label>
         <input type="range" min={field.min} max={field.max} value={v}
           onChange={e => onChange(+e.target.value)} className="onboard-slider"/>

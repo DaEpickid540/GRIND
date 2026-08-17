@@ -1,3 +1,4 @@
+import { Zap } from "lucide-react";
 import { loginWithGoogle } from "../lib/firebase";
 
 export default function Login() {
@@ -5,7 +6,7 @@ export default function Login() {
     <div className="login-page">
       <div className="login-left">
         <div className="login-brand">
-          <span className="login-bolt">⚡</span>
+          <Zap className="login-bolt" size={48} strokeWidth={2.5} color="var(--accent)"/>
           <h1 className="login-title">GRIND</h1>
         </div>
         <p className="login-tagline">Turn your life into a game.<br/>Win it every day.</p>

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Tent, CheckCircle2, Pencil, ClipboardList } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import {
   submitCheckIn, updateCheckIn, getTodayCheckIn,
@@ -9,7 +10,7 @@ import { useToast } from "../components/Toast";
 import Confetti from "../components/Confetti";
 import HabitCustomizer from "../components/HabitCustomizer";
 
-function CompletionRing({ pct, size=80, stroke=7, color="#FFD700" }) {
+function CompletionRing({ pct, size=80, stroke=7, color="var(--accent)" }) {
   const r = (size - stroke*2) / 2, circ = 2 * Math.PI * r;
   return (
     <svg width={size} height={size} style={{ transform:"rotate(-90deg)" }}>
@@ -212,7 +213,9 @@ export default function Dashboard() {
         </div>
         <div style={{ display:"flex", gap:10, alignItems:"center" }}>
           {profile?.excuseActive && (
-            <div className="excuse-chip">⛺ Excuse active until {profile.excuseActive.until}</div>
+            <div className="excuse-chip" style={{ display:"inline-flex", alignItems:"center", gap:6 }}>
+              <Tent size={14}/> Excuse active until {profile.excuseActive.until}
+            </div>
           )}
           {!checkedIn && (
             <div className="keyboard-hint">Ctrl+Enter to submit</div>
@@ -224,9 +227,9 @@ export default function Dashboard() {
       <div className="rings-row">
         <div className="ring-card">
           <div className="ring-wrap">
-            <CompletionRing pct={pct} size={108} stroke={10} color="#FFD700"/>
+            <CompletionRing pct={pct} size={108} stroke={10} color="var(--accent)"/>
             <div className="ring-center">
-              <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:26, color:"#FFD700", lineHeight:1 }}>{pct}%</div>
+              <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:26, color:"var(--accent)", lineHeight:1 }}>{pct}%</div>
               <div style={{ fontSize:9, color:"#555", letterSpacing:1 }}>TODAY</div>
             </div>
           </div>
@@ -258,7 +261,7 @@ export default function Dashboard() {
               <div key={i} className="xp-breakdown-row">
                 <span style={{ color:item.color, fontSize:11 }}>{item.cat}</span>
                 <span style={{ flex:1, fontSize:13 }}>{item.label}</span>
-                <span style={{ color:"#FFD700", fontFamily:"monospace", fontSize:12 }}>+{item.xp}</span>
+                <span style={{ color:"var(--accent)", fontFamily:"monospace", fontSize:12 }}>+{item.xp}</span>
               </div>
             ))}
           </div>
@@ -271,19 +274,19 @@ export default function Dashboard() {
           <div style={{ display:"flex", flexDirection:"column", gap:2 }}>
             <span className="habits-section-title">Today's Habits</span>
             {checkedIn && (
-              <span style={{ fontSize:11, color:"#00FF88" }}>
-                ✅ Checked in · tick more boxes to add XP
+              <span style={{ fontSize:11, color:"#00FF88", display:"inline-flex", alignItems:"center", gap:5 }}>
+                <CheckCircle2 size={13}/> Checked in · tick more boxes to add XP
               </span>
             )}
           </div>
-          <button className="btn-customize-habits" onClick={() => setShowCustomizer(true)}>
-            ✏️ Customize
+          <button className="btn-customize-habits" onClick={() => setShowCustomizer(true)} style={{ display:"inline-flex", alignItems:"center", gap:5 }}>
+            <Pencil size={13}/> Customize
           </button>
         </div>
 
         {total === 0 ? (
           <div className="cust-empty-state">
-            <div style={{ fontSize:40, marginBottom:12 }}>📋</div>
+            <div style={{ marginBottom:12, display:"flex", justifyContent:"center" }}><ClipboardList size={40}/></div>
             <div style={{ fontSize:16, fontWeight:700, marginBottom:6 }}>No habits set up yet</div>
             <div style={{ fontSize:13, color:"#555", marginBottom:16 }}>Add your own habits and categories to start tracking</div>
             <button className="btn-primary" onClick={() => setShowCustomizer(true)} style={{ width:"auto", padding:"10px 24px" }}>
@@ -335,19 +338,19 @@ export default function Dashboard() {
                 <>
                   <span style={{ color:"#888" }}>{newlyCheckedIds.length} new</span>
                   &nbsp;·&nbsp;
-                  <span style={{ color:"#FFD700", fontFamily:"monospace" }}>+{liveXP} XP</span>
+                  <span style={{ color:"var(--accent)", fontFamily:"monospace" }}>+{liveXP} XP</span>
                 </>
               ) : (
                 <>
                   <span style={{ color:"#888" }}>{done}/{total} habits</span>
                   &nbsp;·&nbsp;
-                  <span style={{ color:"#FFD700", fontFamily:"monospace" }}>+{liveXP} XP</span>
+                  <span style={{ color:"var(--accent)", fontFamily:"monospace" }}>+{liveXP} XP</span>
                   {(profile?.streak||0) >= 7 && <span style={{ color:"#FF9800", marginLeft:8, fontSize:12 }}>+streak bonus</span>}
                 </>
               )}
             </div>
             <div className="checkin-btns">
-              <button className="btn-excuse-sm" onClick={openExcuseModal}>Set Excuse ⛺</button>
+              <button className="btn-excuse-sm" onClick={openExcuseModal} style={{ display:"inline-flex", alignItems:"center", gap:6 }}><Tent size={14}/> Set Excuse</button>
               {checkedIn ? (
                 <button className="btn-primary" onClick={handleResubmit}
                   disabled={submitting || newlyCheckedIds.length === 0}
@@ -370,7 +373,7 @@ export default function Dashboard() {
       {showExcuse && (
         <div className="modal-overlay" onClick={() => setShowExcuse(false)}>
           <div className="modal excuse-modal" onClick={e => e.stopPropagation()}>
-            <h3>Set an Excuse ⛺</h3>
+            <h3 style={{ display:"flex", alignItems:"center", gap:8 }}><Tent size={20}/> Set an Excuse</h3>
             <p style={{ fontSize:13, color:"#666", marginBottom:16 }}>
               Your streak stays protected for the duration you set.
             </p>

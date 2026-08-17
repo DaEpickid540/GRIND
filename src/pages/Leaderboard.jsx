@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Trophy, Globe, Users, Swords, Flame } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { watchLeaderboard, sendChallenge, getFriendsProfiles } from "../lib/firebase";
 import { getLevelInfo } from "../data/gameData";
@@ -38,16 +39,16 @@ export default function Leaderboard() {
   return (
     <div className="page-content">
       <div className="page-header">
-        <div><h1 className="page-title">🏆 Leaderboard</h1><p className="page-sub">Live rankings by XP · updates in real time</p></div>
+        <div><h1 className="page-title"><Trophy size={28}/> Leaderboard</h1><p className="page-sub">Live rankings by XP · updates in real time</p></div>
         <div className="tabs">
-          <button className={`tab-btn ${scope==="global"?"active":""}`} onClick={()=>setScope("global")}>🌍 Global</button>
-          <button className={`tab-btn ${scope==="friends"?"active":""}`} onClick={()=>setScope("friends")}>👥 Friends</button>
+          <button className={`tab-btn ${scope==="global"?"active":""}`} onClick={()=>setScope("global")} style={{ display:"inline-flex", alignItems:"center", gap:6 }}><Globe size={14}/> Global</button>
+          <button className={`tab-btn ${scope==="friends"?"active":""}`} onClick={()=>setScope("friends")} style={{ display:"inline-flex", alignItems:"center", gap:6 }}><Users size={14}/> Friends</button>
         </div>
       </div>
 
       {scope==="friends" && shown.length<=1 && (
         <div className="empty-state-card" style={{ marginBottom:16 }}>
-          <div style={{ fontSize:48 }}>👥</div>
+          <Users size={48}/>
           <p style={{ color:"#888" }}>Add friends to see how you stack up against them.</p>
         </div>
       )}
@@ -68,12 +69,13 @@ export default function Leaderboard() {
                 <div><div className="board-name">{p.displayName} {me&&<span className="you-tag">YOU</span>}</div></div>
               </div>
               <span style={{ color:li.current.color, fontSize:13 }}>{li.current.emoji} {li.current.title}</span>
-              <span style={{ color:"#FFD700", fontFamily:"'Bebas Neue',sans-serif", fontSize:22 }}>{p.xp||0}</span>
-              <span style={{ color:"#FF4D4D" }}>🔥 {p.streak||0}</span>
+              <span style={{ color:"var(--accent)", fontFamily:"'Bebas Neue',sans-serif", fontSize:22 }}>{p.xp||0}</span>
+              <span style={{ color:"#FF4D4D", display:"inline-flex", alignItems:"center", gap:4 }}><Flame size={13}/> {p.streak||0}</span>
               <span>
                 {!me && (
-                  <button className={`challenge-btn ${challenged[p.uid]?"sent":""}`} onClick={()=>challenge(p)} disabled={!!challenged[p.uid]}>
-                    {challenged[p.uid]?"Sent!":"⚔️ Challenge"}
+                  <button className={`challenge-btn ${challenged[p.uid]?"sent":""}`} onClick={()=>challenge(p)} disabled={!!challenged[p.uid]}
+                    style={{ display:"inline-flex", alignItems:"center", gap:5 }}>
+                    {challenged[p.uid]?"Sent!":<><Swords size={13}/> Challenge</>}
                   </button>
                 )}
               </span>

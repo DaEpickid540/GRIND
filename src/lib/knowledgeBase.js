@@ -179,6 +179,7 @@ const FEATURE_CATEGORY_MAP = {
   physique:    ["bodyComp", "training", "nutrition"],
   posture:     ["training", "recovery"],
   outfit:      [], // not relevant — style isn't in the KB, skip silently
+  voiceCoach:  ["mindset"],
   insights:    ["mindset", "bodyComp", "recovery"],
   chat:        ["nutrition", "training", "bodyComp", "recovery", "mindset"],
 };

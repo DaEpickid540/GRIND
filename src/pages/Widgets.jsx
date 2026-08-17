@@ -1,9 +1,10 @@
 import { useAuth } from "../hooks/useAuth";
 import { getLevelInfo, HABIT_CATEGORIES } from "../data/gameData";
 import { useState, useEffect } from "react";
+import { Smartphone, CheckSquare, Download } from "lucide-react";
 
 // Mini widget preview components
-function StreakWidget({ streak, level, levelTitle, accentColor="#FFD700" }) {
+function StreakWidget({ streak, level, levelTitle, accentColor="var(--accent)" }) {
   return (
     <div className="widget-preview" style={{ background:"#111", borderRadius:16, padding:"16px 20px", width:160, height:80, display:"flex", alignItems:"center", gap:12 }}>
       <div style={{ fontSize:32 }}>🔥</div>
@@ -15,7 +16,7 @@ function StreakWidget({ streak, level, levelTitle, accentColor="#FFD700" }) {
   );
 }
 
-function XPWidget({ xp, level, progress, color="#FFD700" }) {
+function XPWidget({ xp, level, progress, color="var(--accent)" }) {
   return (
     <div className="widget-preview" style={{ background:"#111", borderRadius:16, padding:16, width:160, height:80 }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", marginBottom:8 }}>
@@ -35,18 +36,18 @@ function TodayWidget({ pct, done, total }) {
     <div className="widget-preview" style={{ background:"#111", borderRadius:16, padding:16, width:160, height:80, display:"flex", gap:14, alignItems:"center" }}>
       <svg width={64} height={64} style={{ transform:"rotate(-90deg)", flexShrink:0 }}>
         <circle cx={32} cy={32} r={r} fill="none" stroke="#222" strokeWidth={6}/>
-        <circle cx={32} cy={32} r={r} fill="none" stroke="#FFD700" strokeWidth={6}
+        <circle cx={32} cy={32} r={r} fill="none" stroke="var(--accent)" strokeWidth={6}
           strokeDasharray={circ} strokeDashoffset={circ*(1-pct/100)} strokeLinecap="round"/>
       </svg>
       <div>
-        <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:28, color:"#FFD700", lineHeight:1 }}>{pct}%</div>
+        <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:28, color:"var(--accent)", lineHeight:1 }}>{pct}%</div>
         <div style={{ fontSize:10, color:"#888" }}>{done}/{total} habits</div>
       </div>
     </div>
   );
 }
 
-function LargeWidget({ streak, xp, level, levelTitle, pct, color="#FFD700" }) {
+function LargeWidget({ streak, xp, level, levelTitle, pct, color="var(--accent)" }) {
   return (
     <div className="widget-preview" style={{ background:"#111", borderRadius:20, padding:20, width:340, height:160 }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:16 }}>
@@ -108,14 +109,14 @@ export default function Widgets() {
   return (
     <div className="page-content">
       <div className="page-header">
-        <div><h1 className="page-title">📱 Home Screen</h1><p className="page-sub">Install GRIND and add widgets to your home screen</p></div>
+        <div><h1 className="page-title"><Smartphone size={28}/> Home Screen</h1><p className="page-sub">Install GRIND and add widgets to your home screen</p></div>
       </div>
 
       {/* PWA install section */}
       <div className="section-card" style={{ marginBottom:20 }}>
         <h3 className="section-title">Install App</h3>
         {installed ? (
-          <div className="success-banner">✅ GRIND is installed on your device!</div>
+          <div className="success-banner" style={{ display:"flex", alignItems:"center", gap:8 }}><CheckSquare size={16}/> GRIND is installed on your device!</div>
         ) : (
           <>
             <p style={{ fontSize:14, color:"#888", marginBottom:16, lineHeight:1.6 }}>
@@ -143,8 +144,8 @@ export default function Widgets() {
               )}
             </div>
             {deferredPrompt && (
-              <button className="btn-primary" onClick={installPWA} style={{ width:"auto", padding:"10px 32px", marginTop:12 }}>
-                ⊕ Install GRIND Now
+              <button className="btn-primary" onClick={installPWA} style={{ width:"auto", padding:"10px 32px", marginTop:12, display:"inline-flex", alignItems:"center", gap:6 }}>
+                <Download size={15}/> Install GRIND Now
               </button>
             )}
           </>

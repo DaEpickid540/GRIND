@@ -187,7 +187,7 @@ export const RARITY_COLORS = {
   uncommon:  "#00CC66",
   rare:      "#4DC9FF",
   epic:      "#B84DFF",
-  legendary: "#FFD700",
+  legendary: "#D4A017",
 };
 
 export const RARITY_ORDER = ["common","uncommon","rare","epic","legendary"];

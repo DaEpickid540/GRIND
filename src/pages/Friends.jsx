@@ -1,4 +1,8 @@
 import { useState, useEffect, useRef } from "react";
+import {
+  Users, Plus, Inbox, Swords, Shield, X, Copy, Download, Camera,
+  Zap, Flame, CheckSquare, Hourglass, Crown,
+} from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { sendFriendRequest, acceptFriendRequest, declineFriendRequest,
          watchIncomingRequests, getFriendsProfiles, getUserProfile,
@@ -19,7 +23,7 @@ function QRDisplay({ uid, displayName }) {
 
   useEffect(() => {
     if (!canvasRef.current) return;
-    QRCode.toCanvas(canvasRef.current, addUrl, { width:200, margin:2, color:{ dark:"#FFD700", light:"#111111" }});
+    QRCode.toCanvas(canvasRef.current, addUrl, { width:200, margin:2, color:{ dark:"#FF3131", light:"#111111" }});
   }, [uid]);
 
   return (
@@ -29,11 +33,12 @@ function QRDisplay({ uid, displayName }) {
       <div className="qr-url">{addUrl.replace(window.location.origin,"")}</div>
       <div style={{ display:"flex", gap:8, marginTop:12 }}>
         <button className="btn-primary" onClick={() => { navigator.clipboard.writeText(addUrl); setCopied(true); setTimeout(()=>setCopied(false),2000); }}
-          style={{ width:"auto", padding:"8px 20px", fontSize:14 }}>
-          {copied ? "✅ Copied!" : "📋 Copy Link"}
+          style={{ width:"auto", padding:"8px 20px", fontSize:14, display:"inline-flex", alignItems:"center", gap:6 }}>
+          {copied ? <><CheckSquare size={14}/> Copied!</> : <><Copy size={14}/> Copy Link</>}
         </button>
-        <button className="btn-secondary" onClick={() => { const l=document.createElement("a"); l.download=`grind-qr-${displayName}.png`; l.href=canvasRef.current.toDataURL(); l.click(); }}>
-          ⬇️ Save QR
+        <button className="btn-secondary" onClick={() => { const l=document.createElement("a"); l.download=`grind-qr-${displayName}.png`; l.href=canvasRef.current.toDataURL(); l.click(); }}
+          style={{ display:"inline-flex", alignItems:"center", gap:6 }}>
+          <Download size={14}/> Save QR
         </button>
       </div>
     </div>
@@ -52,12 +57,14 @@ function FriendCard({ friend, onChallenge }) {
         <div className="friend-name">{friend.displayName}</div>
         <div style={{ fontSize:12, color:li.current.color }}>{li.current.emoji} {li.current.title}</div>
         <div style={{ display:"flex", gap:10, fontSize:12, color:"#888", marginTop:3, flexWrap:"wrap" }}>
-          <span>⚡ {friend.xp||0} XP</span>
-          <span>🔥 {friend.streak||0} streak</span>
-          <span className={`checkin-pill ${checkedInToday?"done":""}`}>{checkedInToday?"✅ checked in":"⏳ not yet"}</span>
+          <span style={{ display:"inline-flex", alignItems:"center", gap:3 }}><Zap size={12}/> {friend.xp||0} XP</span>
+          <span style={{ display:"inline-flex", alignItems:"center", gap:3 }}><Flame size={12}/> {friend.streak||0} streak</span>
+          <span className={`checkin-pill ${checkedInToday?"done":""}`} style={{ display:"inline-flex", alignItems:"center", gap:3 }}>
+            {checkedInToday ? <><CheckSquare size={12}/> checked in</> : <><Hourglass size={12}/> not yet</>}
+          </span>
         </div>
       </div>
-      <button className="challenge-btn" onClick={() => onChallenge(friend)} title="Challenge to 7-day XP race">⚔️</button>
+      <button className="challenge-btn" onClick={() => onChallenge(friend)} title="Challenge to 7-day XP race"><Swords size={16}/></button>
     </div>
   );
 }
@@ -193,19 +200,20 @@ export default function Friends() {
   return (
     <div className="page-content">
       <div className="page-header">
-        <div><h1 className="page-title">👥 Friends</h1><p className="page-sub">Add friends via QR. Track streaks. Battle for XP.</p></div>
+        <div><h1 className="page-title"><Users size={28}/> Friends</h1><p className="page-sub">Add friends via QR. Track streaks. Battle for XP.</p></div>
         {(requests.length>0 || activeChallenges.length>0) && (
           <div style={{ display:"flex", gap:8 }}>
             {requests.length>0 && <div className="req-badge">{requests.length} request{requests.length>1?"s":""}</div>}
-            {activeChallenges.length>0 && <div className="req-badge" style={{ borderColor:"#B84DFF", color:"#B84DFF", background:"#15001a" }}>{activeChallenges.length} ⚔️</div>}
+            {activeChallenges.length>0 && <div className="req-badge" style={{ borderColor:"#B84DFF", color:"#B84DFF", background:"#15001a", display:"inline-flex", alignItems:"center", gap:4 }}>{activeChallenges.length} <Swords size={12}/></div>}
           </div>
         )}
       </div>
 
       <div className="tabs" style={{ marginBottom:20 }}>
-        {[["friends","👥 Friends"],["add","➕ Add"],["requests","📬 Requests"],["challenges","⚔️ Challenges"],["guild","🛡️ Guild"]].map(([id,label]) => (
-          <button key={id} className={`tab-btn ${tab===id?"active":""}`} onClick={() => setTab(id)}>
-            {label}
+        {[["friends",Users,"Friends"],["add",Plus,"Add"],["requests",Inbox,"Requests"],["challenges",Swords,"Challenges"],["guild",Shield,"Guild"]].map(([id,Icon,label]) => (
+          <button key={id} className={`tab-btn ${tab===id?"active":""}`} onClick={() => setTab(id)}
+            style={{ display:"inline-flex", alignItems:"center", gap:6 }}>
+            <Icon size={14}/>{label}
             {id==="requests"   && requests.length>0        ? ` (${requests.length})` : ""}
             {id==="challenges" && activeChallenges.length>0 ? ` (${activeChallenges.length})` : ""}
           </button>
@@ -218,7 +226,7 @@ export default function Friends() {
           {loading && <div className="loading-card"><div className="spinner"/></div>}
           {!loading && friends.length===0 && (
             <div className="empty-state-card">
-              <div style={{ fontSize:56 }}>👥</div><h3>No friends yet</h3>
+              <Users size={56}/><h3>No friends yet</h3>
               <p>Add friends with QR code or share your link.</p>
               <button className="btn-primary" onClick={()=>setTab("add")} style={{ width:"auto", padding:"10px 24px", marginTop:8 }}>Add a Friend</button>
             </div>
@@ -241,11 +249,11 @@ export default function Friends() {
             <h3 className="section-sub-title">Scan a Friend's QR</h3>
             <div className="camera-box">
               <video ref={videoRef} className={`qr-video ${scanning?"active":""}`} muted playsInline/>
-              {!scanning && <div className="camera-placeholder">📷</div>}
+              {!scanning && <div className="camera-placeholder"><Camera size={48}/></div>}
             </div>
             <div style={{ display:"flex", gap:8, marginBottom:20 }}>
               {!scanning
-                ? <button className="btn-primary" onClick={startScan} style={{ width:"auto", padding:"10px 24px" }}>📷 Start Scan</button>
+                ? <button className="btn-primary" onClick={startScan} style={{ width:"auto", padding:"10px 24px", display:"inline-flex", alignItems:"center", gap:6 }}><Camera size={14}/> Start Scan</button>
                 : <button className="btn-secondary" onClick={stopScan}>Stop</button>}
             </div>
             <div className="divider-or"><span>or paste link / UID</span></div>
@@ -273,7 +281,7 @@ export default function Friends() {
         <div>
           {challenges.length===0 && (
             <div className="empty-state-card">
-              <div style={{ fontSize:48 }}>⚔️</div>
+              <Swords size={48}/>
               <p style={{ color:"#888" }}>No challenges yet. Challenge a friend to a 7-day XP race!</p>
             </div>
           )}
@@ -303,7 +311,9 @@ function RequestCard({ req, onAccept, onDecline }) {
       <div className="friend-info">
         <div className="friend-name">{profile.displayName}</div>
         <div style={{ fontSize:12, color:li.current.color }}>{li.current.emoji} {li.current.title}</div>
-        <div style={{ fontSize:12, color:"#888" }}>⚡ {profile.xp||0} XP · 🔥 {profile.streak||0} streak</div>
+        <div style={{ fontSize:12, color:"#888", display:"flex", alignItems:"center", gap:4 }}>
+          <Zap size={12}/> {profile.xp||0} XP · <Flame size={12}/> {profile.streak||0} streak
+        </div>
       </div>
       <div style={{ display:"flex", gap:8 }}>
         <button className="btn-primary" onClick={onAccept} style={{ width:"auto", padding:"7px 16px", fontSize:13 }}>Accept</button>
@@ -425,7 +435,7 @@ function GuildSection({ user, friends, toast }) {
         )}
 
         <div className="empty-state-card">
-          <div style={{ fontSize:48 }}>🛡️</div>
+          <Shield size={48}/>
           <h3>No guild yet</h3>
           <p style={{ color:"#888", marginBottom:16 }}>
             Found a guild and recruit your friends — squads compete together for XP glory,
@@ -462,7 +472,7 @@ function GuildSection({ user, friends, toast }) {
           <div style={{ fontSize:20, fontWeight:800 }}>{guild.name}</div>
           <div style={{ fontSize:12, color:"#888" }}>
             {(guild.members || []).length} member{(guild.members || []).length !== 1 ? "s" : ""}
-            {isOwner && " · 👑 You lead this guild"}
+            {isOwner && <> · <Crown size={12} style={{ verticalAlign:"-2px" }}/> You lead this guild</>}
           </div>
         </div>
         <button className="btn-secondary" onClick={async () => {
@@ -500,7 +510,7 @@ function GuildSection({ user, friends, toast }) {
       {/* Challenge another guild */}
       {isOwner && (
         <div className="card" style={{ padding:16, marginBottom:24 }}>
-          <label className="mp-label">⚔️ Challenge a rival guild — 7-day combined-XP race</label>
+          <label className="mp-label" style={{ display:"inline-flex", alignItems:"center", gap:6 }}><Swords size={14}/> Challenge a rival guild — 7-day combined-XP race</label>
           <div style={{ display:"flex", gap:8, marginTop:8, flexWrap:"wrap" }}>
             <input className="inp" placeholder="Exact rival guild name…" value={targetName}
               onChange={e => setTargetName(e.target.value)} onKeyDown={e => e.key==="Enter" && handleChallenge()}/>
@@ -540,14 +550,16 @@ function GuildMemberRow({ uid, name, isOwner, guildId, ownerUid, me, toast }) {
         ? <img src={p.customPhotoURL || p.photoURL} className="friend-avatar" referrerPolicy="no-referrer" alt=""/>
         : <div className="friend-avatar placeholder">{(name || p.displayName)?.[0]}</div>}
       <div className="friend-info">
-        <div className="friend-name">{name || p.displayName} {isLeader && <span title="Guild leader">👑</span>}</div>
+        <div className="friend-name">{name || p.displayName} {isLeader && <Crown size={13} style={{ verticalAlign:"-2px" }} title="Guild leader"/>}</div>
         <div style={{ fontSize:12, color:li.current.color }}>{li.current.emoji} {li.current.title}</div>
-        <div style={{ fontSize:12, color:"#888" }}>⚡ {p.xp || 0} XP · 🔥 {p.streak || 0} streak</div>
+        <div style={{ fontSize:12, color:"#888", display:"flex", alignItems:"center", gap:4 }}>
+          <Zap size={12}/> {p.xp || 0} XP · <Flame size={12}/> {p.streak || 0} streak
+        </div>
       </div>
       {isOwner && uid !== me && (
         <button className="challenge-btn" title="Remove from guild" onClick={async () => {
           if (confirm(`Remove ${name || p.displayName} from the guild?`)) { await kickGuildMember(guildId, uid); toast("Member removed", "info"); }
-        }}>✕</button>
+        }}><X size={14}/></button>
       )}
     </div>
   );
@@ -567,7 +579,9 @@ function GuildChallengeCard({ c, guildId, past, isOwner, onAccept, onDecline }) 
 
   return (
     <div className="challenge-card-full">
-      <div className="challenge-icon">{myEmoji}⚔️{rivalEmoji}</div>
+      <div className="challenge-icon" style={{ display:"inline-flex", alignItems:"center", gap:4 }}>
+        <span>{myEmoji}</span><Swords size={16}/><span>{rivalEmoji}</span>
+      </div>
       <div style={{ flex:1 }}>
         <div style={{ fontWeight:700, fontSize:15 }}>{myName} vs {rivalName}</div>
         <div style={{ fontSize:12, color:"#888", marginTop:2 }}>
@@ -580,12 +594,12 @@ function GuildChallengeCard({ c, guildId, past, isOwner, onAccept, onDecline }) 
             <button className="btn-secondary" onClick={onDecline} style={{ padding:"6px 16px" }}>Decline</button>
           </div>
         )}
-        {c.status==="pending" && incoming && !isOwner && <div style={{ fontSize:12, color:"#FF9800", marginTop:8 }}>⏳ Waiting for your guild leader to respond</div>}
-        {c.status==="pending" && !incoming && <div style={{ fontSize:12, color:"#FF9800", marginTop:8 }}>⏳ Waiting for {rivalName} to accept</div>}
+        {c.status==="pending" && incoming && !isOwner && <div style={{ fontSize:12, color:"#FF9800", marginTop:8, display:"flex", alignItems:"center", gap:4 }}><Hourglass size={12}/> Waiting for your guild leader to respond</div>}
+        {c.status==="pending" && !incoming && <div style={{ fontSize:12, color:"#FF9800", marginTop:8, display:"flex", alignItems:"center", gap:4 }}><Hourglass size={12}/> Waiting for {rivalName} to accept</div>}
 
         {c.status==="active" && (
           <div style={{ display:"flex", gap:16, marginTop:8, fontSize:13 }}>
-            <span style={{ color:"#FFD700" }}>{myName}: +{myGain ?? 0} XP</span>
+            <span style={{ color:"var(--accent)" }}>{myName}: +{myGain ?? 0} XP</span>
             <span style={{ color:"#4DC9FF" }}>{rivalName}: +{rivalGain ?? 0} XP</span>
           </div>
         )}
@@ -613,7 +627,7 @@ function ChallengeCard({ c, uid, past, onAccept, onDecline }) {
 
   return (
     <div className="challenge-card-full">
-      <div className="challenge-icon">⚔️</div>
+      <div className="challenge-icon"><Swords size={16}/></div>
       <div style={{ flex:1 }}>
         <div style={{ fontWeight:700, fontSize:15 }}>
           {c.from===uid ? `You vs ${c.toName}` : `${c.fromName} vs You`}
@@ -626,11 +640,11 @@ function ChallengeCard({ c, uid, past, onAccept, onDecline }) {
             <button className="btn-secondary" onClick={onDecline} style={{ padding:"6px 16px" }}>Decline</button>
           </div>
         )}
-        {c.status==="pending" && !incoming && <div style={{ fontSize:12, color:"#FF9800", marginTop:8 }}>⏳ Waiting for {c.toName} to accept</div>}
+        {c.status==="pending" && !incoming && <div style={{ fontSize:12, color:"#FF9800", marginTop:8, display:"flex", alignItems:"center", gap:4 }}><Hourglass size={12}/> Waiting for {c.toName} to accept</div>}
 
         {c.status==="active" && (
           <div style={{ display:"flex", gap:16, marginTop:8, fontSize:13 }}>
-            <span style={{ color:"#FFD700" }}>You: +{myGain ?? 0} XP</span>
+            <span style={{ color:"var(--accent)" }}>You: +{myGain ?? 0} XP</span>
             <span style={{ color:"#4DC9FF" }}>{opponent}: +{theirGain ?? 0} XP</span>
           </div>
         )}

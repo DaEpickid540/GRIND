@@ -6,7 +6,7 @@ const LS_KEY = "grind_settings";
 export const DEFAULT_SETTINGS = {
   // Appearance
   theme: "dark",            // dark | light | auto
-  accentColor: "#FFD700",
+  accentColor: "#FF3131",
   fontSize: "medium",       // small | medium | large
   compactMode: false,
   sidebarCollapsed: false,
@@ -57,7 +57,7 @@ let _mqlBound = false;
 
 export function applySettings(s) {
   const root = document.documentElement;
-  root.style.setProperty("--accent", s.accentColor || "#FFD700");
+  root.style.setProperty("--accent", s.accentColor || "#FF3131");
   root.style.setProperty("--font-scale", s.fontSize==="small"?"0.9":s.fontSize==="large"?"1.1":"1");
   document.body.classList.toggle("compact-mode", !!s.compactMode);
   document.body.classList.toggle("no-animations", !s.animationsEnabled);

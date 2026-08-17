@@ -1,4 +1,5 @@
 import { useState, useEffect, lazy, Suspense } from "react";
+import { Menu } from "lucide-react";
 import { AuthProvider, useAuth } from "./hooks/useAuth";
 import { ToastProvider } from "./components/Toast";
 import { hasValidKey } from "./lib/aiProvider";
@@ -18,6 +19,7 @@ const WeeklyPlan    = lazy(() => import("./pages/WeeklyPlan"));
 const GymRecords    = lazy(() => import("./pages/GymRecords"));
 const Nutrition     = lazy(() => import("./pages/Nutrition"));
 const AIScans       = lazy(() => import("./pages/AIScans"));
+const VoiceCoach    = lazy(() => import("./pages/VoiceCoach"));
 const Breathing     = lazy(() => import("./pages/Breathing"));
 const Leaderboard   = lazy(() => import("./pages/Leaderboard"));
 const Stats         = lazy(() => import("./pages/Stats"));        // pulls recharts
@@ -97,7 +99,7 @@ function AppInner() {
                isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)}/>
       {sidebarOpen && <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)}/>}
       <main className="main-area">
-        <button className="hamburger" onClick={() => setSidebarOpen(true)} aria-label="Open menu">☰</button>
+        <button className="hamburger" onClick={() => setSidebarOpen(true)} aria-label="Open menu"><Menu size={20}/></button>
         <Suspense fallback={<PageLoader/>}>
           <PublicProfile uid={publicUID} onBack={() => setPublicUID(null)}/>
         </Suspense>
@@ -116,7 +118,7 @@ function AppInner() {
                isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)}/>
       {sidebarOpen && <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)}/>}
       <main className="main-area">
-        <button className="hamburger" onClick={() => setSidebarOpen(true)} aria-label="Open menu">☰</button>
+        <button className="hamburger" onClick={() => setSidebarOpen(true)} aria-label="Open menu"><Menu size={20}/></button>
         <Suspense fallback={<PageLoader/>}>
           {page==="dashboard"   && <Dashboard/>}
           {page==="plan"        && <WeeklyPlan/>}
@@ -124,6 +126,7 @@ function AppInner() {
           {page==="gym"         && <GymRecords/>}
           {page==="nutrition"   && <Nutrition/>}
           {page==="ai_scan"     && <AIScans/>}
+          {page==="voice_coach" && <VoiceCoach/>}
           {page==="breathing"   && <Breathing/>}
           {page==="friends"     && <Friends/>}
           {page==="leaderboard" && <Leaderboard/>}

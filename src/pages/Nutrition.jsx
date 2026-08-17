@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
-import { callAI, getAIConfig, getModelInfo, PROVIDERS } from "../lib/aiProvider";
+import { Salad, Camera, UtensilsCrossed, Ban, Eye, Search, Lightbulb, MessageCircle, Hourglass, Sparkles, ChevronUp, ChevronDown, X } from "lucide-react";
+import { callAI, getAIConfig, getModelInfo, currentModelSupportsVision, PROVIDERS } from "../lib/aiProvider";
 import { useToast } from "../components/Toast";
 import { useAuth } from "../hooks/useAuth";
 import { saveNutritionEntry, getNutritionLog, updateUserProfile } from "../lib/firebase";
@@ -32,12 +33,12 @@ function VisionOnlyBanner() {
   if (info.vision !== false) return null;   // model supports vision — no warning needed
   return (
     <div className="vision-only-banner">
-      <span className="vision-only-icon">👁️</span>
+      <span className="vision-only-icon"><Eye size={22}/></span>
       <div>
         <strong>Vision model required for photo scanning</strong>
         <span style={{ display:"block", fontSize:12, color:"#FF9800", marginTop:2 }}>
           "{info.label}" can't analyze images. Go to <strong>Settings → AI</strong> and
-          switch to a vision-capable model (e.g. Gemini 2.0 Flash, GPT-4o, Claude Sonnet).
+          switch to a vision-capable model (e.g. Gemini Flash, GPT-4o, Claude Sonnet).
         </span>
       </div>
     </div>
@@ -62,7 +63,10 @@ function CalorieScanner({ user }) {
     );
   }, [user]);
 
+  const visionReady = currentModelSupportsVision();
+
   function handleFile(e) {
+    if (!visionReady) { toast("Your AI model can't see images — pick a vision model in Settings ⚙️", "error"); return; }
     const file = e.target.files[0]; if (!file) return;
     if (file.size > 8 * 1024 * 1024) { toast("Image too large (max 8 MB)", "warning"); return; }
     const reader = new FileReader();
@@ -89,6 +93,7 @@ function CalorieScanner({ user }) {
       toast(`Scanned: ${parsed.meal} — ${parsed.calories} cal`, "success");
     } catch (e) {
       if (e.message === "NO_KEY") toast("No API key set — go to Settings ⚙️", "error");
+      else if (e.message === "NO_VISION") toast("Your AI model can't see images — pick a vision model in Settings ⚙️", "error");
       else toast("Scan failed — try again", "error");
       console.error(e);
     } finally { setScanning(false); }
@@ -104,20 +109,24 @@ function CalorieScanner({ user }) {
       <VisionOnlyBanner />
       <div className="nutrition-layout">
         <div className="nutrition-left">
-          <div className="upload-zone" onClick={() => fileRef.current.click()}>
+          <div className={`upload-zone${!visionReady ? " upload-zone-locked" : ""}`}
+            onClick={() => visionReady && fileRef.current.click()}
+            title={!visionReady ? "Switch to a vision model in Settings to upload a photo" : undefined}>
             {preview
               ? <img src={preview} alt="meal" style={{ width:"100%",height:"100%",objectFit:"cover",borderRadius:10 }}/>
-              : <><div style={{ fontSize:48 }}>📸</div><p>Click to upload meal photo</p></>}
+              : !visionReady ? <><Eye size={48} style={{ opacity:.4 }}/><p>Vision model required — switch in Settings</p></>
+              : <><Camera size={48}/><p>Click to upload meal photo</p></>}
           </div>
-          <input ref={fileRef} type="file" accept="image/*" style={{ display:"none" }} onChange={handleFile}/>
-          <button className="btn-primary" onClick={scan} disabled={!image||scanning} style={{ marginTop:12 }}>
-            {scanning ? "🔍 Scanning…" : "Scan Meal"}
+          <input ref={fileRef} type="file" accept="image/*" style={{ display:"none" }} onChange={handleFile} disabled={!visionReady}/>
+          <button className="btn-primary" onClick={scan} disabled={!image||scanning||!visionReady} style={{ marginTop:12, display:"inline-flex", alignItems:"center", gap:8, justifyContent:"center" }}
+            title={!visionReady ? "Your selected AI model can't see images — switch to a vision model in Settings" : undefined}>
+            {scanning ? <><Search size={16}/> Scanning…</> : "Scan Meal"}
           </button>
           {result && (
             <div className="macro-result">
               <h3>{result.meal}</h3>
               <div className="macro-grid">
-                {[["Calories",result.calories,"#FF4D4D"],["Protein",`${result.protein}g`,"#4DC9FF"],["Carbs",`${result.carbs}g`,"#FFD700"],["Fat",`${result.fat}g`,"#00FF88"]].map(([k,v,c])=>(
+                {[["Calories",result.calories,"#FF4D4D"],["Protein",`${result.protein}g`,"#4DC9FF"],["Carbs",`${result.carbs}g`,"#D4A017"],["Fat",`${result.fat}g`,"#00FF88"]].map(([k,v,c])=>(
                   <div key={k} className="macro-tile" style={{ borderColor:c }}><div className="macro-val" style={{ color:c }}>{v}</div><div className="macro-key">{k}</div></div>
                 ))}
               </div>
@@ -126,13 +135,13 @@ function CalorieScanner({ user }) {
                   {result.items.map((item,i) => (
                     <div key={i} className="food-item">
                       <span>{item.name}</span>
-                      <span style={{ color:"#FFD700" }}>{item.calories} cal</span>
+                      <span style={{ color:"var(--accent)" }}>{item.calories} cal</span>
                       <span style={{ color:"#4DC9FF" }}>{item.protein}g P</span>
                     </div>
                   ))}
                 </div>
               )}
-              {result.tip && <div className="nutrition-tip">💡 {result.tip}</div>}
+              {result.tip && <div className="nutrition-tip" style={{ display:"flex", alignItems:"flex-start", gap:8 }}><Lightbulb size={15} style={{ flexShrink:0, marginTop:2 }}/> {result.tip}</div>}
             </div>
           )}
         </div>
@@ -141,7 +150,7 @@ function CalorieScanner({ user }) {
           <div className="daily-summary">
             <h3>Today's Total</h3>
             <div className="daily-macros">
-              {[["cal",totals.cal,"#FF4D4D"],["protein",`${totals.protein}g`,"#4DC9FF"],["carbs",`${totals.carbs}g`,"#FFD700"],["fat",`${totals.fat}g`,"#00FF88"]].map(([k,v,c])=>(
+              {[["cal",totals.cal,"#FF4D4D"],["protein",`${totals.protein}g`,"#4DC9FF"],["carbs",`${totals.carbs}g`,"#D4A017"],["fat",`${totals.fat}g`,"#00FF88"]].map(([k,v,c])=>(
                 <div key={k}><span className="dm-val" style={{ color:c }}>{v}</span><span className="dm-key">{k}</span></div>
               ))}
             </div>
@@ -152,7 +161,7 @@ function CalorieScanner({ user }) {
             <div key={i} className="log-entry">
               <div style={{ fontWeight:600,fontSize:14 }}>{item.meal}</div>
               <div style={{ fontSize:12,color:"#666" }}>{item.time}</div>
-              <div style={{ fontSize:12,color:"#FFD700" }}>{item.calories} cal · {item.protein}g P · {item.carbs}g C · {item.fat}g F</div>
+              <div style={{ fontSize:12,color:"var(--accent)" }}>{item.calories} cal · {item.protein}g P · {item.carbs}g C · {item.fat}g F</div>
             </div>
           ))}
         </div>
@@ -235,7 +244,7 @@ Return ONLY valid JSON in this exact structure — no other text:
       {/* Active restrictions reminder */}
       {activeRest.length > 0 && (
         <div className="mp-restrictions-bar">
-          <span className="mp-rest-label">🚫 Active restrictions:</span>
+          <span className="mp-rest-label" style={{ display:"inline-flex", alignItems:"center", gap:5 }}><Ban size={13}/> Active restrictions:</span>
           <div className="mp-rest-chips">
             {activeRest.map((r, i) => <span key={i} className="mp-rest-chip">{r}</span>)}
           </div>
@@ -280,10 +289,11 @@ Return ONLY valid JSON in this exact structure — no other text:
           className="btn-primary mp-generate-btn"
           onClick={generate}
           disabled={loading}
+          style={{ display:"inline-flex", alignItems:"center", gap:8, justifyContent:"center" }}
         >
           {loading
-            ? "⏳ Generating…"
-            : `✨ Generate ${days===1 ? "Day" : `${days}-Day`} Meal Plan`}
+            ? <><Hourglass size={16}/> Generating…</>
+            : <><Sparkles size={16}/> Generate {days===1 ? "Day" : `${days}-Day`} Meal Plan</>}
         </button>
       </div>
 
@@ -298,7 +308,7 @@ Return ONLY valid JSON in this exact structure — no other text:
       {/* Plan display */}
       {!loading && plan && (
         <div className="mp-plan">
-          {plan.summary && <div className="mp-summary">💬 {plan.summary}</div>}
+          {plan.summary && <div className="mp-summary" style={{ display:"flex", alignItems:"flex-start", gap:8 }}><MessageCircle size={15} style={{ flexShrink:0, marginTop:2 }}/> {plan.summary}</div>}
           {plan.days?.map((day, di) => (
             <div key={di} className="mp-day-card">
               <button
@@ -309,10 +319,10 @@ Return ONLY valid JSON in this exact structure — no other text:
                 <div className="mp-day-totals">
                   <span style={{ color:"#FF4D4D" }}>{day.totalCalories} cal</span>
                   <span style={{ color:"#4DC9FF" }}>{day.totalProtein}g P</span>
-                  <span style={{ color:"#FFD700" }}>{day.totalCarbs}g C</span>
+                  <span style={{ color:"#D4A017" }}>{day.totalCarbs}g C</span>
                   <span style={{ color:"#00FF88" }}>{day.totalFat}g F</span>
                 </div>
-                <span className="mp-day-chevron">{expanded[di] ? "▲" : "▼"}</span>
+                <span className="mp-day-chevron">{expanded[di] ? <ChevronUp size={16}/> : <ChevronDown size={16}/>}</span>
               </button>
               {expanded[di] && (
                 <div className="mp-meals">
@@ -325,7 +335,7 @@ Return ONLY valid JSON in this exact structure — no other text:
                         <div className="mp-meal-macros">
                           <span style={{ color:"#FF4D4D" }}>{meal.calories} cal</span>
                           <span style={{ color:"#4DC9FF" }}>{meal.protein}g P</span>
-                          <span style={{ color:"#FFD700" }}>{meal.carbs}g C</span>
+                          <span style={{ color:"#D4A017" }}>{meal.carbs}g C</span>
                           <span style={{ color:"#00FF88" }}>{meal.fat}g F</span>
                         </div>
                       </div>
@@ -408,7 +418,7 @@ function Restrictions({ user, profile }) {
       {/* ── Permanent ── */}
       <div className="rest-card">
         <div className="rest-card-header">
-          <h3 className="rest-card-title">🚫 Permanent Restrictions</h3>
+          <h3 className="rest-card-title" style={{ display:"flex", alignItems:"center", gap:8 }}><Ban size={17}/> Permanent Restrictions</h3>
           <p className="rest-card-sub">
             Allergies, intolerances, lifestyle choices — always applied to meal plans
           </p>
@@ -434,7 +444,7 @@ function Restrictions({ user, profile }) {
               {permanent.map((r, i) => (
                 <div key={i} className="rest-chip perm">
                   <span>{r}</span>
-                  <button className="rest-chip-remove" onClick={() => removePermanent(r)} title="Remove">✕</button>
+                  <button className="rest-chip-remove" onClick={() => removePermanent(r)} title="Remove"><X size={13}/></button>
                 </div>
               ))}
             </div>
@@ -444,7 +454,7 @@ function Restrictions({ user, profile }) {
       {/* ── Temporary ── */}
       <div className="rest-card">
         <div className="rest-card-header">
-          <h3 className="rest-card-title">⏳ Temporary Restrictions</h3>
+          <h3 className="rest-card-title" style={{ display:"flex", alignItems:"center", gap:8 }}><Hourglass size={17}/> Temporary Restrictions</h3>
           <p className="rest-card-sub">
             For festivals, events, or short-term diets — automatically expires on the set date
           </p>
@@ -499,7 +509,7 @@ function Restrictions({ user, profile }) {
                 <div key={i} className="rest-chip temp">
                   <span className="rest-chip-text">{r.text}</span>
                   <span className="rest-chip-until">until {r.until} · {daysLeft}d left</span>
-                  <button className="rest-chip-remove" onClick={() => removeTemp(r)} title="Remove">✕</button>
+                  <button className="rest-chip-remove" onClick={() => removeTemp(r)} title="Remove"><X size={13}/></button>
                 </div>
               );
             })}
@@ -514,7 +524,7 @@ function Restrictions({ user, profile }) {
                 <div key={i} className="rest-chip expired">
                   <span>{r.text}</span>
                   <span className="rest-chip-until">expired {r.until}</span>
-                  <button className="rest-chip-remove" onClick={() => removeTemp(r)} title="Remove">✕</button>
+                  <button className="rest-chip-remove" onClick={() => removeTemp(r)} title="Remove"><X size={13}/></button>
                 </div>
               ))}
             </div>
@@ -530,9 +540,9 @@ function Restrictions({ user, profile }) {
 
 // ── Main ────────────────────────────────────────────────────────────────────
 const TABS = [
-  { id:"scanner",      label:"📸 Calorie Scanner", badge:"👁 Vision only" },
-  { id:"mealplan",     label:"🍽️ Meal Plans"                              },
-  { id:"restrictions", label:"🚫 Restrictions"                            },
+  { id:"scanner",      icon:Camera,           label:"Calorie Scanner", badgeIcon:Eye, badge:"Vision only" },
+  { id:"mealplan",     icon:UtensilsCrossed,  label:"Meal Plans"                                          },
+  { id:"restrictions", icon:Ban,              label:"Restrictions"                                        },
 ];
 
 export default function Nutrition() {
@@ -543,7 +553,7 @@ export default function Nutrition() {
     <div className="page-content">
       <div className="page-header">
         <div>
-          <h1 className="page-title">🥗 Nutrition</h1>
+          <h1 className="page-title" style={{ display:"inline-flex", alignItems:"center", gap:10 }}><Salad size={32}/> Nutrition</h1>
           <p className="page-sub">Track meals, generate AI plans, manage dietary restrictions</p>
         </div>
       </div>
@@ -555,8 +565,8 @@ export default function Nutrition() {
             className={`nutrition-tab${tab===t.id?" active":""}`}
             onClick={() => setTab(t.id)}
           >
-            {t.label}
-            {t.badge && <span className="nutrition-tab-badge">{t.badge}</span>}
+            <t.icon size={14}/> {t.label}
+            {t.badge && <span className="nutrition-tab-badge" style={{ display:"inline-flex", alignItems:"center", gap:3 }}><t.badgeIcon size={11}/> {t.badge}</span>}
           </button>
         ))}
       </div>

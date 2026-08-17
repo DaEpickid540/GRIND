@@ -1,5 +1,6 @@
 // Step-by-step tutorial: how to get an API key for each provider
 import { useState } from "react";
+import { GraduationCap, AlertTriangle, ChevronDown, ChevronRight } from "lucide-react";
 import { PROVIDERS } from "../lib/aiProvider";
 
 const TUTORIALS = [
@@ -69,7 +70,7 @@ const TUTORIALS = [
     icon: "🐳",
     title: "DeepSeek",
     badge: "CHEAP",
-    badgeColor: "#FFD700",
+    badgeColor: "#D4A017",
     summary: "Not directly supported as a provider yet — use it through OpenRouter (model: 'deepseek/deepseek-r1'). One of the smartest models out there and very cheap.",
     steps: [
       { title: "Use OpenRouter (see above) and select a DeepSeek model", body: "DeepSeek's direct API works with the OpenAI SDK format, but for now use OpenRouter for the simplest integration." },
@@ -129,12 +130,12 @@ export default function Tutorial() {
   return (
     <div className="page-content">
       <div className="page-header">
-        <div><h1 className="page-title">🎓 Setup Tutorial</h1><p className="page-sub">How to get an AI API key. Several free options — pick what fits.</p></div>
+        <div><h1 className="page-title"><GraduationCap size={28}/> Setup Tutorial</h1><p className="page-sub">How to get an AI API key. Several free options — pick what fits.</p></div>
       </div>
 
       {/* The big upfront warning */}
       <div className="tutorial-warning">
-        <div style={{ fontSize:24 }}>⚠️</div>
+        <AlertTriangle size={24} color="#FF9800"/>
         <div>
           <div style={{ fontWeight:700, fontSize:14, color:"#FF9800" }}>Free models are weaker than paid models.</div>
           <div style={{ fontSize:13, color:"#aaa", marginTop:3 }}>
@@ -156,7 +157,7 @@ export default function Tutorial() {
           ].map(row => (
             <div key={row.label} className="compare-row">
               <span style={{ color:"#888" }}>{row.label}</span>
-              <span style={{ color:"#FFD700", fontWeight:700 }}>{row.pick}</span>
+              <span style={{ color:"var(--accent)", fontWeight:700 }}>{row.pick}</span>
               <span style={{ color:"#666", fontSize:12 }}>{row.why}</span>
             </div>
           ))}
@@ -176,7 +177,7 @@ export default function Tutorial() {
                   <div style={{ fontSize:12, color:"#888", marginTop:2 }}>{t.summary}</div>
                 </div>
                 <span className="tutorial-badge" style={{ borderColor:t.badgeColor, color:t.badgeColor }}>{t.badge}</span>
-                <span className="tutorial-chevron">{isOpen?"▼":"▶"}</span>
+                <span className="tutorial-chevron">{isOpen? <ChevronDown size={14}/> : <ChevronRight size={14}/>}</span>
               </button>
 
               {isOpen && (

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Upload, Download, FileText, Brain, Sparkles, Lightbulb } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { db } from "../lib/firebase";
 import { collection, getDocs, orderBy, query } from "firebase/firestore";
@@ -146,26 +147,26 @@ function ExportSection({ profile, checkins, li }) {
 
   return (
     <div className="section-card">
-      <h3 className="section-title">📤 Export & AI Insights</h3>
+      <h3 className="section-title" style={{ display:"flex", alignItems:"center", gap:6 }}><Upload size={14}/> Export & AI Insights</h3>
       <p style={{ fontSize:13, color:"var(--muted2)", marginBottom:16, lineHeight:1.5 }}>
         Download your progress as a spreadsheet or polished report — or have the AI dig through
         your check-in history for real patterns and honest feedback.
       </p>
       <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
-        <button className="btn-secondary" onClick={() => exportCSV(checkins)} disabled={!checkins.length}>
-          ⬇️ Export CSV
+        <button className="btn-secondary" onClick={() => exportCSV(checkins)} disabled={!checkins.length} style={{ display:"inline-flex", alignItems:"center", gap:6 }}>
+          <Download size={14}/> Export CSV
         </button>
-        <button className="btn-secondary" onClick={handlePDF} disabled={building || !checkins.length}>
-          {building ? "Building…" : "📄 Export PDF Report"}
+        <button className="btn-secondary" onClick={handlePDF} disabled={building || !checkins.length} style={{ display:"inline-flex", alignItems:"center", gap:6 }}>
+          {building ? "Building…" : <><FileText size={14}/> Export PDF Report</>}
         </button>
-        <button className="btn-primary" onClick={handleInsights} disabled={thinking || checkins.length < 3} style={{ width:"auto", padding:"10px 20px" }}>
-          {thinking ? "🧠 Thinking…" : "✨ Generate AI Insights"}
+        <button className="btn-primary" onClick={handleInsights} disabled={thinking || checkins.length < 3} style={{ width:"auto", padding:"10px 20px", display:"inline-flex", alignItems:"center", gap:6 }}>
+          {thinking ? <><Brain size={14}/> Thinking…</> : <><Sparkles size={14}/> Generate AI Insights</>}
         </button>
       </div>
       {checkins.length < 3 && <p style={{ fontSize:12, color:"var(--muted)", marginTop:10 }}>Log a few more check-ins to unlock AI insights.</p>}
       {insights?.length > 0 && (
         <div className="ai-insights-list">
-          {insights.map((ins, i) => <div key={i} className="ai-insight-item">💡 {ins}</div>)}
+          {insights.map((ins, i) => <div key={i} className="ai-insight-item" style={{ display:"flex", alignItems:"flex-start", gap:6 }}><Lightbulb size={14} style={{ flexShrink:0, marginTop:2 }}/> {ins}</div>)}
         </div>
       )}
     </div>
@@ -214,7 +215,7 @@ export default function Stats() {
       {/* Big stats */}
       <div className="big-stats-row">
         {[
-          {val:profile?.xp||0,         label:"Total XP",     color:"#FFD700"},
+          {val:profile?.xp||0,         label:"Total XP",     color:"#D4A017"},
           {val:profile?.streak||0,      label:"Current Streak",color:"#FF4D4D"},
           {val:profile?.longestStreak||0,label:"Best Streak", color:"#FF9800"},
           {val:checkins.length,         label:"Check-ins",    color:"#4DC9FF"},
@@ -260,7 +261,7 @@ export default function Stats() {
                 <XAxis dataKey="date" tick={{fill:"#555",fontSize:11}}/>
                 <YAxis tick={{fill:"#555",fontSize:11}}/>
                 <Tooltip contentStyle={{background:"#111",border:"1px solid #333",borderRadius:8}}/>
-                <Line type="monotone" dataKey="xp" stroke="#FFD700" strokeWidth={2} dot={false}/>
+                <Line type="monotone" dataKey="xp" stroke="var(--accent)" strokeWidth={2} dot={false}/>
               </LineChart>
             </ResponsiveContainer>
           </div>

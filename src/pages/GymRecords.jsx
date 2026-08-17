@@ -1,9 +1,17 @@
 import { useState, useEffect } from "react";
+import { Dumbbell, Plus, Award, ScrollText, Bot, Hourglass, Sparkles, Timer, ChevronUp, ChevronDown, Trash2, MessageCircle } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { addGymRecord, getGymRecords, deleteGymRecord } from "../lib/firebase";
 import { useToast } from "../components/Toast";
 import { callAI } from "../lib/aiProvider";
 import { buildKnowledgeContext } from "../lib/knowledgeBase";
+
+const GYM_TABS = [
+  { id:"log",     icon:Plus,       label:"Log Set" },
+  { id:"prs",     icon:Award,      label:"PRs" },
+  { id:"history", icon:ScrollText, label:"History" },
+  { id:"ai_plan", icon:Bot,        label:"AI Workout Plans" },
+];
 
 const PRESETS = ["Bench Press","Squat","Deadlift","Overhead Press","Pull-ups","Barbell Row","Dips","Bicep Curl","Tricep Pushdown","Leg Press","Romanian Deadlift","Hip Thrust","Incline Press","Lat Pulldown","Cable Fly","Run (miles)","Custom…"];
 
@@ -120,8 +128,8 @@ Return ONLY valid JSON in this exact structure — no other text:
           <input className="mp-input" type="text" placeholder="e.g. bad left knee — avoid heavy squats, prioritize upper body…"
             value={notes} onChange={e => setNotes(e.target.value)} maxLength={120}/>
         </div>
-        <button className="btn-primary mp-generate-btn" onClick={generate} disabled={loading}>
-          {loading ? "⏳ Generating…" : `✨ Generate ${days}-Day Workout Plan`}
+        <button className="btn-primary mp-generate-btn" onClick={generate} disabled={loading} style={{ display:"inline-flex", alignItems:"center", gap:8, justifyContent:"center" }}>
+          {loading ? <><Hourglass size={16}/> Generating…</> : <><Sparkles size={16}/> Generate {days}-Day Workout Plan</>}
         </button>
       </div>
 
@@ -134,16 +142,16 @@ Return ONLY valid JSON in this exact structure — no other text:
 
       {!loading && plan && (
         <div className="mp-plan">
-          {plan.summary && <div className="mp-summary">💬 {plan.summary}</div>}
+          {plan.summary && <div className="mp-summary" style={{ display:"flex", alignItems:"flex-start", gap:8 }}><MessageCircle size={15} style={{ flexShrink:0, marginTop:2 }}/> {plan.summary}</div>}
           {plan.days?.map((day, di) => (
             <div key={di} className="mp-day-card">
               <button className="mp-day-header" onClick={() => setExpanded(e => ({ ...e, [di]: !e[di] }))}>
                 <span className="mp-day-title">{day.day}</span>
                 <div className="mp-day-totals">
                   {day.focus && <span style={{ color:"#4DC9FF" }}>{day.focus}</span>}
-                  {day.estimatedDuration && <span style={{ color:"#FFD700" }}>⏱ {day.estimatedDuration}</span>}
+                  {day.estimatedDuration && <span style={{ color:"var(--accent)", display:"inline-flex", alignItems:"center", gap:4 }}><Timer size={13}/> {day.estimatedDuration}</span>}
                 </div>
-                <span className="mp-day-chevron">{expanded[di] ? "▲" : "▼"}</span>
+                <span className="mp-day-chevron">{expanded[di] ? <ChevronUp size={16}/> : <ChevronDown size={16}/>}</span>
               </button>
               {expanded[di] && (
                 <div className="mp-meals">
@@ -230,13 +238,13 @@ export default function GymRecords() {
   return (
     <div className="page-content">
       <div className="page-header">
-        <div><h1 className="page-title">🏋️ Gym Records</h1><p className="page-sub">Track every lift. Own every PR.</p></div>
+        <div><h1 className="page-title" style={{ display:"inline-flex", alignItems:"center", gap:10 }}><Dumbbell size={32}/> Gym Records</h1><p className="page-sub">Track every lift. Own every PR.</p></div>
       </div>
 
       <div className="tabs">
-        {["log","prs","history","ai_plan"].map(t=>(
-          <button key={t} className={`tab-btn ${tab===t?"active":""}`} onClick={()=>setTab(t)}>
-            {t==="log"?"➕ Log Set":t==="prs"?"🏅 PRs":t==="history"?"📜 History":"🤖 AI Workout Plans"}
+        {GYM_TABS.map(t=>(
+          <button key={t.id} className={`tab-btn ${tab===t.id?"active":""}`} onClick={()=>setTab(t.id)} style={{ display:"inline-flex", alignItems:"center", gap:6 }}>
+            <t.icon size={14}/> {t.label}
           </button>
         ))}
       </div>
@@ -294,10 +302,10 @@ export default function GymRecords() {
               <div key={r.id} className="record-row" style={{gridTemplateColumns:"100px 1fr 100px 80px 1fr 36px"}}>
                 <span style={{color:"#666",fontFamily:"monospace",fontSize:12}}>{r.date}</span>
                 <span style={{fontWeight:600}}>{r.exercise}</span>
-                <span style={{color:"#FFD700"}}>{r.weight} lbs</span>
+                <span style={{color:"var(--accent)"}}>{r.weight} lbs</span>
                 <span style={{color:"#888"}}>{r.reps}×{r.sets}</span>
                 <span style={{color:"#555",fontSize:12}}>{r.notes}</span>
-                <button className="habit-remove" onClick={()=>handleDelete(r)} aria-label={`Delete ${r.exercise} record`} title="Delete">🗑</button>
+                <button className="habit-remove" onClick={()=>handleDelete(r)} aria-label={`Delete ${r.exercise} record`} title="Delete"><Trash2 size={14}/></button>
               </div>
             ))}
             {!loading && filtered.length===0 && <p className="empty">No records match.</p>}

@@ -1,24 +1,38 @@
+import {
+  Zap, ClipboardList, BarChart3, Dumbbell, Salad, Camera, Target, Wind, Mic,
+  Users, GraduationCap, Trophy, Store as StoreIcon, Smartphone, BookOpen,
+  X, Settings as SettingsIcon, Coins, Flame, AlertTriangle,
+} from "lucide-react";
 import { logout } from "../lib/firebase";
 import { useAuth } from "../hooks/useAuth";
 import { getLevelInfo } from "../data/gameData";
 import { getAIConfig, PROVIDERS } from "../lib/aiProvider";
 import { getItemById } from "../data/storeItems";
 
-const NAV = [
-  { id:"dashboard",   icon:"⚡", label:"Today"        },
-  { id:"plan",        icon:"📋", label:"Weekly Plan"  },
-  { id:"skills",      icon:"🎯", label:"Skills"       },
-  { id:"gym",         icon:"🏋️", label:"Gym Records"  },
-  { id:"nutrition",   icon:"🥗", label:"Nutrition"    },
-  { id:"ai_scan",     icon:"📸", label:"AI Scans"     },
-  { id:"breathing",   icon:"🌬️", label:"Breathing"    },
-  { id:"friends",     icon:"👥", label:"Friends"      },
-  { id:"classes",     icon:"🎓", label:"Classes"      },
-  { id:"leaderboard", icon:"🏆", label:"Leaderboard"  },
-  { id:"store",       icon:"🏪", label:"Store"        },
-  { id:"widgets",     icon:"📱", label:"Home Screen"  },
-  { id:"stats",       icon:"📊", label:"Stats"        },
-  { id:"tutorial",    icon:"📖", label:"Setup Guide"  },
+const NAV_SECTIONS = [
+  { label:"Main", items: [
+    { id:"dashboard", icon:Zap,            label:"Today"       },
+    { id:"plan",      icon:ClipboardList,  label:"Weekly Plan" },
+    { id:"stats",     icon:BarChart3,      label:"Stats"       },
+  ]},
+  { label:"Train", items: [
+    { id:"gym",       icon:Dumbbell, label:"Gym Records" },
+    { id:"nutrition", icon:Salad,    label:"Nutrition"   },
+    { id:"ai_scan",   icon:Camera,   label:"AI Scans"    },
+    { id:"voice_coach", icon:Mic,    label:"Voice Coach" },
+    { id:"skills",    icon:Target,   label:"Skills"      },
+    { id:"breathing", icon:Wind,     label:"Breathing"   },
+  ]},
+  { label:"Social", items: [
+    { id:"friends",     icon:Users,          label:"Friends"     },
+    { id:"classes",     icon:GraduationCap,  label:"Classes"     },
+    { id:"leaderboard", icon:Trophy,         label:"Leaderboard" },
+  ]},
+  { label:"More", items: [
+    { id:"store",    icon:StoreIcon, label:"Store"       },
+    { id:"widgets",  icon:Smartphone,label:"Home Screen" },
+    { id:"tutorial", icon:BookOpen,  label:"Setup Guide" },
+  ]},
 ];
 
 export default function Sidebar({ page, setPage, onOpenSettings, isOpen, onClose }) {
@@ -48,9 +62,9 @@ export default function Sidebar({ page, setPage, onOpenSettings, isOpen, onClose
   return (
     <aside className={`sidebar${isOpen ? " open" : ""}`}>
       <div className="sidebar-logo">
-        <span className="logo-bolt">⚡</span>
+        <Zap className="logo-bolt" size={24} strokeWidth={2.5}/>
         <span className="logo-text">GRIND</span>
-        <button className="sidebar-close-btn" onClick={onClose} aria-label="Close menu">✕</button>
+        <button className="sidebar-close-btn" onClick={onClose} aria-label="Close menu"><X size={18}/></button>
       </div>
 
       {user && (
@@ -80,36 +94,38 @@ export default function Sidebar({ page, setPage, onOpenSettings, isOpen, onClose
         </div>
       )}
 
-      {/* Coin balance */}
-      {profile && (
-        <div className="sidebar-coins" onClick={() => setPage("store")} title="Go to Store">
-          <span className="sidebar-coins-icon">🪙</span>
-          <span className="sidebar-coins-count">{coins.toLocaleString()}</span>
-          <span className="sidebar-coins-label">coins</span>
-          <span className="sidebar-coins-arrow">→</span>
-        </div>
-      )}
-
-      {profile?.streak > 0 && (
-        <div className={`sidebar-streak ${streakAtRisk?"at-risk":""}`}>
-          <span className="streak-fire">{streakIcon}</span>
-          <div>
-            <div style={{ display:"flex", alignItems:"baseline", gap:4 }}>
-              <span className="streak-num" style={{ color:streakAtRisk?"#FF9800":"#FF4D4D" }}>{profile.streak}</span>
-              <span className="streak-label">day streak</span>
+      {/* Coins + streak — compact side-by-side stat chips */}
+      {(profile || profile?.streak > 0) && (
+        <div className="sidebar-stats-row">
+          {profile && (
+            <div className="sidebar-coins" onClick={() => setPage("store")} title={`${coins.toLocaleString()} coins — go to Store`}>
+              <Coins className="sidebar-coins-icon" size={14}/>
+              <span className="sidebar-coins-count">{coins.toLocaleString()}</span>
+              <span className="sidebar-coins-arrow">→</span>
             </div>
-            {streakAtRisk && <div style={{ fontSize:10, color:"#FF9800", marginTop:1 }}>Check in today!</div>}
-          </div>
+          )}
+          {profile?.streak > 0 && (
+            <div className={`sidebar-streak ${streakAtRisk?"at-risk":""}`}
+                 title={streakAtRisk ? "Streak at risk — check in today!" : `${profile.streak} day streak`}>
+              <span className="streak-fire">{streakIcon}</span>
+              <span className="streak-num" style={{ color:streakAtRisk?"#FF9800":"#FF4D4D" }}>{profile.streak}</span>
+            </div>
+          )}
         </div>
       )}
 
       <nav className="sidebar-nav">
-        {NAV.map(n => (
-          <button key={n.id} className={`nav-item ${page===n.id?"active":""}`} onClick={() => setPage(n.id)}>
-            <span className="nav-icon">{n.icon}</span>
-            <span className="nav-label">{n.label}</span>
-            {n.id==="dashboard" && !todayCheckedIn && profile?.streak > 0 && <span className="nav-dot"/>}
-          </button>
+        {NAV_SECTIONS.map(sec => (
+          <div key={sec.label} className="nav-section">
+            <div className="nav-section-label">{sec.label}</div>
+            {sec.items.map(n => (
+              <button key={n.id} className={`nav-item ${page===n.id?"active":""}`} onClick={() => setPage(n.id)}>
+                <n.icon className="nav-icon" size={17} strokeWidth={2}/>
+                <span className="nav-label">{n.label}</span>
+                {n.id==="dashboard" && !todayCheckedIn && profile?.streak > 0 && <span className="nav-dot"/>}
+              </button>
+            ))}
+          </div>
         ))}
       </nav>
 
@@ -121,14 +137,14 @@ export default function Sidebar({ page, setPage, onOpenSettings, isOpen, onClose
         </div>
       ) : (
         <button className="sidebar-ai-chip no-key" onClick={onOpenSettings}>
-          <span>⚠️</span><span style={{ fontSize:11, color:"#FF9800" }}>No AI key set</span>
+          <AlertTriangle size={14}/><span style={{ fontSize:11, color:"#FF9800" }}>No AI key set</span>
         </button>
       )}
 
       <div className="sidebar-footer">
         <div className="sidebar-footer-stats"><span>Lv {profile?.level||1}</span><span>·</span><span>{profile?.xp||0} XP</span></div>
         <div style={{ display:"flex", gap:6 }}>
-          <button className="sidebar-settings-btn" onClick={onOpenSettings} title="Settings (⌘,)">⚙️</button>
+          <button className="sidebar-settings-btn" onClick={onOpenSettings} title="Settings (⌘,)"><SettingsIcon size={16}/></button>
           <button className="sidebar-logout" onClick={logout}>Sign Out</button>
         </div>
       </div>

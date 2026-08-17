@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ClipboardList, Sparkles, RefreshCw, Hourglass, Sun, CloudSun, Moon, Timer, ChevronDown, ChevronRight } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { saveWeeklyPlan, togglePlanTask } from "../lib/firebase";
 import { useToast } from "../components/Toast";
@@ -15,9 +16,10 @@ function parseAIJson(text) {
 
 const SLOTS = ["Morning","Afternoon","Evening"];
 const DAYS  = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
-const SLOT_ICONS  = { Morning:"☀️", Afternoon:"🌤️", Evening:"🌙" };
-const SLOT_COLORS = { Morning:"#FFD700", Afternoon:"#FF9800", Evening:"#4DC9FF" };
-const CAT_COLORS  = { fitness:"#FF4D4D", selfcare:"#4DC9FF", school:"#FFD700", coding:"#00FF88", social:"#FF88FF" };
+const SLOT_ICONS  = { Morning:Sun, Afternoon:CloudSun, Evening:Moon };
+const SLOT_EMOJI  = { Morning:"☀️", Afternoon:"🌤️", Evening:"🌙" };  // used only in toast copy
+const SLOT_COLORS = { Morning:"#D4A017", Afternoon:"#FF9800", Evening:"#4DC9FF" };
+const CAT_COLORS  = { fitness:"#FF4D4D", selfcare:"#4DC9FF", school:"#D4A017", coding:"#00FF88", social:"#FF88FF" };
 
 export default function WeeklyPlan() {
   const { user, profile, refreshProfile } = useAuth();
@@ -59,7 +61,7 @@ export default function WeeklyPlan() {
     const updated = { ...tasksDone, [key]: !current };
     setTasksDone(updated);
     await togglePlanTask(user.uid, key, current);
-    if (!current) toast(`${SLOT_ICONS[slot]} ${slot} task done!`, "success", 2000);
+    if (!current) toast(`${SLOT_EMOJI[slot]} ${slot} task done!`, "success", 2000);
   }
 
   const totalTasks = plan ? DAYS.length * SLOTS.length : 0;
@@ -69,21 +71,21 @@ export default function WeeklyPlan() {
   return (
     <div className="page-content">
       <div className="page-header">
-        <div><h1 className="page-title">📋 Weekly Plan</h1><p className="page-sub">AI-generated daily structure — check off tasks as you go</p></div>
+        <div><h1 className="page-title" style={{ display:"inline-flex", alignItems:"center", gap:10 }}><ClipboardList size={32}/> Weekly Plan</h1><p className="page-sub">AI-generated daily structure — check off tasks as you go</p></div>
         <div style={{ display:"flex", gap:12, alignItems:"center" }}>
-          {plan && <div className="week-progress-chip"><span style={{ color:"#FFD700", fontFamily:"monospace" }}>{doneTasks}/{totalTasks}</span><span style={{ color:"#555" }}>&nbsp;done ({weekPct}%)</span></div>}
-          <button className="btn-primary" onClick={generatePlan} disabled={generating} style={{ width:"auto", padding:"10px 24px" }}>
-            {generating ? "⏳ Generating…" : plan ? "🔄 Regenerate" : "✨ Generate Plan"}
+          {plan && <div className="week-progress-chip"><span style={{ color:"var(--accent)", fontFamily:"monospace" }}>{doneTasks}/{totalTasks}</span><span style={{ color:"#555" }}>&nbsp;done ({weekPct}%)</span></div>}
+          <button className="btn-primary" onClick={generatePlan} disabled={generating} style={{ width:"auto", padding:"10px 24px", display:"inline-flex", alignItems:"center", gap:8, justifyContent:"center" }}>
+            {generating ? <><Hourglass size={16}/> Generating…</> : plan ? <><RefreshCw size={16}/> Regenerate</> : <><Sparkles size={16}/> Generate Plan</>}
           </button>
         </div>
       </div>
 
       {!plan && !generating && (
         <div className="empty-state-card">
-          <div style={{ fontSize:72 }}>📋</div>
+          <div style={{ display:"flex", justifyContent:"center" }}><ClipboardList size={72}/></div>
           <h3>No plan yet</h3>
           <p>Hit "Generate Plan" and your AI will build a full 7-day Morning/Afternoon/Evening schedule.</p>
-          <button className="btn-primary" onClick={generatePlan} style={{ width:"auto", padding:"12px 32px", marginTop:8 }}>✨ Generate My Plan</button>
+          <button className="btn-primary" onClick={generatePlan} style={{ width:"auto", padding:"12px 32px", marginTop:8, display:"inline-flex", alignItems:"center", gap:8, justifyContent:"center" }}><Sparkles size={16}/> Generate My Plan</button>
         </div>
       )}
 
@@ -94,9 +96,9 @@ export default function WeeklyPlan() {
           <div className="week-bar-card">
             <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}>
               <span style={{ fontSize:12, color:"#888", textTransform:"uppercase", letterSpacing:.5 }}>Week Progress</span>
-              <span style={{ fontSize:12, color:"#FFD700", fontFamily:"monospace" }}>{weekPct}%</span>
+              <span style={{ fontSize:12, color:"var(--accent)", fontFamily:"monospace" }}>{weekPct}%</span>
             </div>
-            <div className="level-bar-bg"><div className="level-bar-fill" style={{ width:`${weekPct}%`, background:"#FFD700" }}/></div>
+            <div className="level-bar-bg"><div className="level-bar-fill" style={{ width:`${weekPct}%`, background:"var(--accent)" }}/></div>
           </div>
 
           <div className="plan-days">
@@ -116,7 +118,7 @@ export default function WeeklyPlan() {
                         {SLOTS.map(s => <div key={s} style={{ width:8, height:8, borderRadius:"50%", background:tasksDone[`${day}_${s}`]?SLOT_COLORS[s]:"#2a2a2a" }}/>)}
                       </div>
                       <span style={{ fontSize:12, color:"#555" }}>{dayDone}/3</span>
-                      <span className="plan-chevron">{isOpen?"▼":"▶"}</span>
+                      <span className="plan-chevron">{isOpen ? <ChevronDown size={16}/> : <ChevronRight size={16}/>}</span>
                     </div>
                   </button>
                   {isOpen && dayPlan && (
@@ -124,10 +126,11 @@ export default function WeeklyPlan() {
                       {SLOTS.map(slot => {
                         const s = dayPlan[slot], k = `${day}_${slot}`, done = !!tasksDone[k];
                         if (!s) return null;
+                        const SlotIcon = SLOT_ICONS[slot];
                         return (
                           <div key={slot} className={`plan-slot ${done?"done":""}`} onClick={() => handleToggleTask(day, slot)} style={{ cursor:"pointer" }}>
                             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
-                              <div className="slot-label" style={{ color:SLOT_COLORS[slot] }}>{SLOT_ICONS[slot]} {slot}</div>
+                              <div className="slot-label" style={{ color:SLOT_COLORS[slot], display:"inline-flex", alignItems:"center", gap:6 }}><SlotIcon size={15}/> {slot}</div>
                               <div style={{ display:"flex", gap:8, alignItems:"center" }}>
                                 {s.category && <span style={{ fontSize:10, color:CAT_COLORS[s.category]||"#888", border:`1px solid ${CAT_COLORS[s.category]||"#888"}`, borderRadius:4, padding:"1px 6px", textTransform:"uppercase", letterSpacing:.5 }}>{s.category}</span>}
                                 <div className={`task-check ${done?"checked":""}`}>{done?"✓":""}</div>
@@ -135,7 +138,7 @@ export default function WeeklyPlan() {
                             </div>
                             <div className="slot-task" style={{ opacity:done?.4:1, textDecoration:done?"line-through":"none" }}>{s.task}</div>
                             {!done && <div className="slot-why">{s.why}</div>}
-                            {s.duration && <div className="slot-duration">⏱ {s.duration}</div>}
+                            {s.duration && <div className="slot-duration" style={{ display:"inline-flex", alignItems:"center", gap:4 }}><Timer size={12}/> {s.duration}</div>}
                           </div>
                         );
                       })}

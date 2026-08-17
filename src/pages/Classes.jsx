@@ -1,5 +1,9 @@
 // Teacher/Coach classroom management
 import { useState, useEffect } from "react";
+import {
+  GraduationCap, Plus, BookOpen, Copy, RefreshCw, Flame, CheckSquare,
+  Hourglass, Trash2, Users, Dumbbell, Trophy, Target, ClipboardList,
+} from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { createClass, joinClassByCode, leaveClass, getMyClasses,
          watchClassMembers, regenerateJoinCode, deleteClass } from "../lib/firebase";
@@ -116,8 +120,8 @@ export default function Classes() {
               <div style={{ fontSize:10, color:"#888", textTransform:"uppercase", letterSpacing:.5 }}>Join Code</div>
               <div className="class-code-big" onClick={() => copyCode(openClass.joinCode)}>{openClass.joinCode}</div>
               <div style={{ display:"flex", gap:6 }}>
-                <button className="btn-secondary" onClick={() => copyCode(openClass.joinCode)} style={{ padding:"5px 12px", fontSize:12 }}>📋 Copy</button>
-                <button className="btn-secondary" onClick={() => handleRegenCode(openClass)} style={{ padding:"5px 12px", fontSize:12 }}>🔄 New</button>
+                <button className="btn-secondary" onClick={() => copyCode(openClass.joinCode)} style={{ padding:"5px 12px", fontSize:12, display:"inline-flex", alignItems:"center", gap:5 }}><Copy size={13}/> Copy</button>
+                <button className="btn-secondary" onClick={() => handleRegenCode(openClass)} style={{ padding:"5px 12px", fontSize:12, display:"inline-flex", alignItems:"center", gap:5 }}><RefreshCw size={13}/> New</button>
               </div>
             </div>
           )}
@@ -141,9 +145,11 @@ export default function Classes() {
                   <div style={{ fontSize:12, color:li.current.color }}>{li.current.emoji} {li.current.title}</div>
                 </div>
                 <div className="member-stats">
-                  <div><span style={{ color:"#FFD700", fontFamily:"'Bebas Neue',sans-serif", fontSize:22 }}>{m.currentXP||0}</span> <span style={{ fontSize:10, color:"#888" }}>XP</span></div>
-                  <div><span style={{ color:"#FF4D4D" }}>🔥 {m.currentStreak||0}</span></div>
-                  <div className={`checkin-pill ${checkedInToday?"done":""}`}>{checkedInToday?"✅ today":"⏳ waiting"}</div>
+                  <div><span style={{ color:"var(--accent)", fontFamily:"'Bebas Neue',sans-serif", fontSize:22 }}>{m.currentXP||0}</span> <span style={{ fontSize:10, color:"#888" }}>XP</span></div>
+                  <div><span style={{ color:"#FF4D4D", display:"inline-flex", alignItems:"center", gap:3 }}><Flame size={13}/> {m.currentStreak||0}</span></div>
+                  <div className={`checkin-pill ${checkedInToday?"done":""}`} style={{ display:"inline-flex", alignItems:"center", gap:3 }}>
+                    {checkedInToday ? <><CheckSquare size={12}/> today</> : <><Hourglass size={12}/> waiting</>}
+                  </div>
                 </div>
               </div>
             );
@@ -152,7 +158,7 @@ export default function Classes() {
 
         <div style={{ marginTop:32, display:"flex", gap:8 }}>
           {isTeacher
-            ? <button className="sbtn-danger" onClick={() => handleDelete(openClass)}>🗑 Delete Class</button>
+            ? <button className="sbtn-danger" onClick={() => handleDelete(openClass)} style={{ display:"inline-flex", alignItems:"center", gap:6 }}><Trash2 size={14}/> Delete Class</button>
             : <button className="sbtn-danger" onClick={() => { handleLeave(openClass); setOpenClass(null); }}>Leave Class</button>}
         </div>
       </div>
@@ -163,13 +169,13 @@ export default function Classes() {
   return (
     <div className="page-content">
       <div className="page-header">
-        <div><h1 className="page-title">🎓 Classes</h1><p className="page-sub">Coach a team. Join a class. Track progress together.</p></div>
+        <div><h1 className="page-title"><GraduationCap size={28}/> Classes</h1><p className="page-sub">Coach a team. Join a class. Track progress together.</p></div>
       </div>
 
       <div className="tabs" style={{ marginBottom:20 }}>
-        <button className={`tab-btn ${tab==="mine"?"active":""}`} onClick={()=>setTab("mine")}>📚 My Classes</button>
-        <button className={`tab-btn ${tab==="join"?"active":""}`} onClick={()=>setTab("join")}>➕ Join</button>
-        <button className={`tab-btn ${tab==="create"?"active":""}`} onClick={()=>setTab("create")}>🎓 Create (Teachers)</button>
+        <button className={`tab-btn ${tab==="mine"?"active":""}`} onClick={()=>setTab("mine")} style={{ display:"inline-flex", alignItems:"center", gap:6 }}><BookOpen size={14}/> My Classes</button>
+        <button className={`tab-btn ${tab==="join"?"active":""}`} onClick={()=>setTab("join")} style={{ display:"inline-flex", alignItems:"center", gap:6 }}><Plus size={14}/> Join</button>
+        <button className={`tab-btn ${tab==="create"?"active":""}`} onClick={()=>setTab("create")} style={{ display:"inline-flex", alignItems:"center", gap:6 }}><GraduationCap size={14}/> Create (Teachers)</button>
       </div>
 
       {tab==="mine" && (
@@ -177,7 +183,7 @@ export default function Classes() {
           {loading && <div className="loading-card"><div className="spinner"/></div>}
           {!loading && teaching.length===0 && student.length===0 && (
             <div className="empty-state-card">
-              <div style={{ fontSize:56 }}>🎓</div>
+              <GraduationCap size={56}/>
               <h3>No classes yet</h3>
               <p>Join with a code from your teacher, or create your own class if you coach a team.</p>
               <div style={{ display:"flex", gap:10, marginTop:8 }}>
@@ -189,7 +195,7 @@ export default function Classes() {
 
           {teaching.length > 0 && (
             <>
-              <h3 className="section-sub-title" style={{ marginBottom:12 }}>🎓 Classes you teach</h3>
+              <h3 className="section-sub-title" style={{ marginBottom:12, display:"flex", alignItems:"center", gap:6 }}><GraduationCap size={16}/> Classes you teach</h3>
               <div className="class-grid">
                 {teaching.map(cls => <ClassCard key={cls.id} cls={cls} isTeacher onClick={() => setOpenClass(cls)}/>)}
               </div>
@@ -198,7 +204,7 @@ export default function Classes() {
 
           {student.length > 0 && (
             <>
-              <h3 className="section-sub-title" style={{ margin:"24px 0 12px" }}>📚 Classes you're in</h3>
+              <h3 className="section-sub-title" style={{ margin:"24px 0 12px", display:"flex", alignItems:"center", gap:6 }}><BookOpen size={16}/> Classes you're in</h3>
               <div className="class-grid">
                 {student.map(cls => <ClassCard key={cls.id} cls={cls} onClick={() => setOpenClass(cls)}/>)}
               </div>
@@ -245,8 +251,8 @@ export default function Classes() {
           </select>
 
           <button className="btn-primary" onClick={handleCreate} disabled={creating||!createForm.name.trim()}
-            style={{ width:"auto", padding:"10px 28px", marginTop:16 }}>
-            {creating ? "Creating…" : "🎓 Create Class"}
+            style={{ width:"auto", padding:"10px 28px", marginTop:16, display:"inline-flex", alignItems:"center", gap:6 }}>
+            {creating ? "Creating…" : <><GraduationCap size={15}/> Create Class</>}
           </button>
         </div>
       )}
@@ -255,16 +261,17 @@ export default function Classes() {
 }
 
 function ClassCard({ cls, isTeacher, onClick }) {
-  const typeIcons = { gym:"🏋️", sport:"⚽", academic:"📚", club:"🎯", general:"📋" };
+  const typeIcons = { gym:Dumbbell, sport:Trophy, academic:BookOpen, club:Target, general:ClipboardList };
+  const TypeIcon = typeIcons[cls.type] || ClipboardList;
   return (
     <div className="class-card" onClick={onClick}>
-      <div className="class-card-icon">{typeIcons[cls.type]||"📋"}</div>
+      <div className="class-card-icon"><TypeIcon size={30}/></div>
       <div className="class-card-body">
         <div className="class-card-name">{cls.name}</div>
         <div className="class-card-desc">{cls.description || (isTeacher ? "—" : `Coach: ${cls.teacherName}`)}</div>
         <div className="class-card-stats">
-          <span>👥 {cls.memberCount||0} member{cls.memberCount===1?"":"s"}</span>
-          {isTeacher && <span style={{ fontFamily:"monospace", color:"#FFD700" }}>Code: {cls.joinCode}</span>}
+          <span style={{ display:"inline-flex", alignItems:"center", gap:4 }}><Users size={13}/> {cls.memberCount||0} member{cls.memberCount===1?"":"s"}</span>
+          {isTeacher && <span style={{ fontFamily:"monospace", color:"var(--accent)" }}>Code: {cls.joinCode}</span>}
         </div>
       </div>
       {isTeacher && <div className="class-card-badge">TEACHER</div>}
