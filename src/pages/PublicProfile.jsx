@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Flame } from "lucide-react";
 import { getPublicProfile } from "../lib/firebase";
-import { getLevelInfo } from "../data/gameData";
+import { getEffectiveLevelInfo } from "../data/gameData";
 import QRCode from "qrcode";
 
 export default function PublicProfile({ uid, onBack }) {
@@ -23,7 +23,7 @@ export default function PublicProfile({ uid, onBack }) {
   if (loading) return <div className="page-content"><div className="loading-card"><div className="spinner"/></div></div>;
   if (!profile) return <div className="page-content"><p style={{ color:"#888" }}>Profile not found.</p></div>;
 
-  const li = getLevelInfo(profile.xp||0);
+  const li = getEffectiveLevelInfo(profile);
 
   return (
     <div className="page-content">

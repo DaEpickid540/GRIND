@@ -8,7 +8,7 @@ import { useAuth } from "../hooks/useAuth";
 import { db, getGymRecords, getNutritionLog, getScanHistory } from "../lib/firebase";
 import { collection, getDocs, orderBy, query } from "firebase/firestore";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, RadarChart, Radar, PolarGrid, PolarAngleAxis } from "recharts";
-import { getLevelInfo, LEVELS, HABIT_CATEGORIES } from "../data/gameData";
+import { getEffectiveLevelInfo, LEVELS, HABIT_CATEGORIES } from "../data/gameData";
 import { callAI } from "../lib/aiProvider";
 import { buildKnowledgeContext } from "../lib/knowledgeBase";
 import { useToast } from "../components/Toast";
@@ -643,7 +643,7 @@ export default function Stats() {
     getScanHistory(user.uid).then(setScanHistory).catch(()=>{});
   },[user]);
 
-  const li = profile ? getLevelInfo(profile.xp||0) : null;
+  const li = profile ? getEffectiveLevelInfo(profile) : null;
 
   let cumXP = 0;
   const xpChart = checkins.map(c=>{ cumXP+=(c.xpGained||0); return {date:c.date.slice(5),xp:cumXP}; });
@@ -700,7 +700,10 @@ export default function Stats() {
           <h3 className="section-title">Level Journey</h3>
           <div className="levels-track">
             {LEVELS.map((l,i)=>{
-              const reached = (profile?.xp||0)>=l.min;
+              // Gated by effective tier, not raw XP — otherwise a tier could
+              // show "reached" here while the badge above (li.current, which
+              // IS gate-aware) still shows an earlier one for the same user.
+              const reached = l.num<=li.current.num;
               return (
                 <div key={i} className={`level-step ${reached?"reached":""}`}>
                   <div className="level-dot" style={{background:reached?l.color:"#1a1a1a",border:`2px solid ${reached?l.color:"#333"}`}}>{l.emoji}</div>

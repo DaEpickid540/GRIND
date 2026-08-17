@@ -11,7 +11,7 @@ import { sendFriendRequest, acceptFriendRequest, declineFriendRequest,
          acceptGuildInvite, declineGuildInvite, leaveGuild, kickGuildMember,
          sendGuildChallenge, watchMyGuildChallenges, acceptGuildChallenge,
          declineGuildChallenge, resolveGuildChallenge } from "../lib/firebase";
-import { getLevelInfo } from "../data/gameData";
+import { getEffectiveLevelInfo } from "../data/gameData";
 import { useToast } from "../components/Toast";
 import QRCode from "qrcode";
 import { BrowserQRCodeReader } from "@zxing/library";
@@ -46,7 +46,7 @@ function QRDisplay({ uid, displayName }) {
 }
 
 function FriendCard({ friend, onChallenge }) {
-  const li = getLevelInfo(friend.xp||0);
+  const li = getEffectiveLevelInfo(friend);
   const checkedInToday = friend.lastCheckIn === new Date().toISOString().split("T")[0];
   return (
     <div className="friend-card">
@@ -302,7 +302,7 @@ function RequestCard({ req, onAccept, onDecline }) {
   const [profile, setProfile] = useState(null);
   useEffect(() => { getUserProfile(req.from).then(setProfile); }, [req.from]);
   if (!profile) return null;
-  const li = getLevelInfo(profile.xp||0);
+  const li = getEffectiveLevelInfo(profile);
   return (
     <div className="friend-card" style={{ marginBottom:10 }}>
       {(profile.customPhotoURL||profile.photoURL)
@@ -542,7 +542,7 @@ function GuildMemberRow({ uid, name, isOwner, guildId, ownerUid, me, toast }) {
   const [p, setP] = useState(null);
   useEffect(() => { getUserProfile(uid).then(setP); }, [uid]);
   if (!p) return null;
-  const li = getLevelInfo(p.xp || 0);
+  const li = getEffectiveLevelInfo(p);
   const isLeader = uid === ownerUid;
   return (
     <div className="friend-card">

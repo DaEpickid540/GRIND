@@ -170,7 +170,7 @@ export default function AIScans() {
           {history.length > 0 && (
             <div className="scan-history">
               <h4 style={{ fontSize:12, color:"#666", textTransform:"uppercase", letterSpacing:.5, margin:"20px 0 10px" }}>
-                Past {active.label}s ({history.length})
+                Past {active.label}{active.label.endsWith("s") ? "" : "s"} ({history.length})
               </h4>
               <div className="scan-history-list">
                 {history.map(h => {

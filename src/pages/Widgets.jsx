@@ -1,5 +1,5 @@
 import { useAuth } from "../hooks/useAuth";
-import { getLevelInfo, HABIT_CATEGORIES } from "../data/gameData";
+import { getEffectiveLevelInfo, HABIT_CATEGORIES } from "../data/gameData";
 import { useState, useEffect } from "react";
 import { Smartphone, CheckSquare, Download } from "lucide-react";
 
@@ -95,7 +95,7 @@ export default function Widgets() {
     setDeferredPrompt(null);
   }
 
-  const li     = profile ? getLevelInfo(profile.xp||0) : null;
+  const li     = profile ? getEffectiveLevelInfo(profile) : null;
   const streak = profile?.streak||0;
   const xp     = profile?.xp||0;
   const level  = profile?.level||1;

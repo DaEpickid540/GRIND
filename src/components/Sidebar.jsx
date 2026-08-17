@@ -5,7 +5,7 @@ import {
 } from "lucide-react";
 import { logout } from "../lib/firebase";
 import { useAuth } from "../hooks/useAuth";
-import { getLevelInfo } from "../data/gameData";
+import { getEffectiveLevelInfo } from "../data/gameData";
 import { getAIConfig, PROVIDERS } from "../lib/aiProvider";
 import { getItemById } from "../data/storeItems";
 
@@ -37,7 +37,10 @@ const NAV_SECTIONS = [
 
 export default function Sidebar({ page, setPage, onOpenSettings, isOpen, onClose }) {
   const { user, profile } = useAuth();
-  const li    = profile ? getLevelInfo(profile.xp||0) : null;
+  // Effective (gated/decay-capped) level, not just raw XP — this is the one
+  // spot that's always on screen, so it's the app's most-seen statement of
+  // "what rank are you," and that should be the honest, earned one.
+  const li    = profile ? getEffectiveLevelInfo(profile) : null;
   const aiCfg = getAIConfig();
   const prov  = aiCfg ? PROVIDERS[aiCfg.provider] : null;
 
