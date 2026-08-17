@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Salad, Camera, UtensilsCrossed, Ban, Eye, Search, Lightbulb, MessageCircle, Hourglass, Sparkles, ChevronUp, ChevronDown, X } from "lucide-react";
+import { Salad, Camera, UtensilsCrossed, Ban, Eye, Search, Lightbulb, MessageCircle, Hourglass, Sparkles, ChevronUp, ChevronDown, X, Calculator, Pencil, Plus, Trash2, Check, Info } from "lucide-react";
 import { callAI, getAIConfig, getModelInfo, currentModelSupportsVision, PROVIDERS } from "../lib/aiProvider";
 import { useToast } from "../components/Toast";
 import { useAuth } from "../hooks/useAuth";
@@ -14,6 +14,48 @@ function parseAIJson(text) {
   if (!match) throw new Error("No JSON found in response");
   return JSON.parse(match[0]);
 }
+
+// Coerce anything (blank input, "12g", undefined) to a usable number — a single
+// empty macro field must never turn the whole day's total into NaN.
+const num = v => { const n = parseFloat(v); return Number.isFinite(n) ? n : 0; };
+const round1 = n => Math.round(n * 10) / 10;   // kills float dust like 45.900000000000006
+
+// Totals are ALWAYS derived from the item rows. The model is told not to send
+// top-level totals, but even when it does we ignore them — deriving is what makes
+// a user edit/delete/add move the number that actually gets logged.
+function sumItems(items = []) {
+  const t = items.reduce((a, i) => ({
+    calories: a.calories + num(i.calories),
+    protein:  a.protein  + num(i.protein),
+    carbs:    a.carbs    + num(i.carbs),
+    fat:      a.fat      + num(i.fat),
+  }), { calories:0, protein:0, carbs:0, fat:0 });
+  return { calories: Math.round(t.calories), protein: round1(t.protein), carbs: round1(t.carbs), fat: round1(t.fat) };
+}
+
+// Whatever shape the model returned → editable rows.
+function normaliseItems(parsed) {
+  const rows = (Array.isArray(parsed.items) ? parsed.items : []).map(it => ({
+    name:           it.name || "",
+    assumedPortion: it.assumedPortion || it.portion || "",
+    basis:          it.basis || it.reasoning || "",
+    calories: num(it.calories), protein: num(it.protein), carbs: num(it.carbs), fat: num(it.fat),
+  }));
+  // Fallback for a lazy/old-schema response that only gave a bottom line: keep the
+  // numbers as one row rather than showing a 0-calorie meal, and let the user split it.
+  if (!rows.length && (parsed.calories || parsed.protein)) {
+    rows.push({
+      name: parsed.meal || "Whole meal", assumedPortion: "",
+      basis: "Model returned a single total instead of a breakdown — adjust below.",
+      calories: num(parsed.calories), protein: num(parsed.protein), carbs: num(parsed.carbs), fat: num(parsed.fat),
+    });
+  }
+  return rows;
+}
+
+const BLANK_ITEM = { name:"", assumedPortion:"", basis:"", calories:0, protein:0, carbs:0, fat:0 };
+const CONF_COLOR = { high:"var(--green)", medium:"var(--orange)", low:"var(--red)" };
+const MACRO_FIELDS = [["calories","Cal"],["protein","Protein g"],["carbs","Carbs g"],["fat","Fat g"]];
 
 function getActiveRestrictions(permanent = [], temps = []) {
   const today = new Date().toISOString().split("T")[0];
@@ -50,7 +92,11 @@ function CalorieScanner({ user }) {
   const toast    = useToast();
   const [image,    setImage]    = useState(null);
   const [preview,  setPreview]  = useState(null);
-  const [result,   setResult]   = useState(null);
+  const [result,   setResult]   = useState(null);   // meal name / assumptions / confidence / tip
+  const [items,    setItems]    = useState([]);     // the editable breakdown — source of truth for totals
+  const [editing,  setEditing]  = useState(false);
+  const [touched,  setTouched]  = useState(false);  // did the user correct the AI?
+  const [logged,   setLogged]   = useState(false);
   const [scanning, setScanning] = useState(false);
   const [log,      setLog]      = useState([]);
   const fileRef = useRef();
@@ -70,9 +116,11 @@ function CalorieScanner({ user }) {
     const file = e.target.files[0]; if (!file) return;
     if (file.size > 8 * 1024 * 1024) { toast("Image too large (max 8 MB)", "warning"); return; }
     const reader = new FileReader();
-    reader.onload = ev => { setPreview(ev.target.result); setImage(file); setResult(null); };
+    reader.onload = ev => { setPreview(ev.target.result); setImage(file); resetResult(); };
     reader.readAsDataURL(file);
   }
+
+  function resetResult() { setResult(null); setItems([]); setEditing(false); setTouched(false); setLogged(false); }
 
   async function scan() {
     if (!image || scanning) return;
@@ -83,20 +131,63 @@ function CalorieScanner({ user }) {
       const text   = await callAI({
         system,
         userMessage: "Estimate the macros for this meal. Be real about whether this fits the user's goal.",
-        imageBase64: b64, imageMime: image.type || "image/jpeg", maxTokens: 600,
+        imageBase64: b64, imageMime: image.type || "image/jpeg", maxTokens: 1100,
       });
       const parsed = parseAIJson(text);
+      const rows   = normaliseItems(parsed);
+      resetResult();
       setResult(parsed);
-      const entry = { ...parsed, time: new Date().toLocaleTimeString(), date: today };
-      setLog(l => [entry, ...l].slice(0, 20));
-      if (user) await saveNutritionEntry(user.uid, entry);
-      toast(`Scanned: ${parsed.meal} — ${parsed.calories} cal`, "success");
+      setItems(rows);
+      // Nothing is written yet — the user gets to correct the breakdown first, then
+      // hits "Log this meal". Saving on scan would persist the AI's un-reviewed guess.
+      toast(`Scanned: ${parsed.meal} — ${sumItems(rows).calories} cal. Review, then log it.`, "success");
     } catch (e) {
       if (e.message === "NO_KEY") toast("No API key set — go to Settings ⚙️", "error");
       else if (e.message === "NO_VISION") toast("Your AI model can't see images — pick a vision model in Settings ⚙️", "error");
       else toast("Scan failed — try again", "error");
       console.error(e);
     } finally { setScanning(false); }
+  }
+
+  // ── user overrides ────────────────────────────────────────────────────────
+  // Raw input values are kept as-typed (so a field can be blank while editing);
+  // num() coerces at sum/save time, so a half-typed row can't corrupt the totals.
+  function patchItem(idx, key, value) {
+    setTouched(true);
+    setItems(list => list.map((it, i) => i===idx ? { ...it, [key]: value } : it));
+  }
+  function removeItem(idx) { setTouched(true); setItems(list => list.filter((_, i) => i!==idx)); }
+  function addItem()       { setTouched(true); setEditing(true); setItems(list => [...list, { ...BLANK_ITEM }]); }
+
+  const mealTotals = sumItems(items);              // live — recomputed every render
+  const conf       = String(result?.confidence || "").toLowerCase();
+
+  async function logMeal() {
+    if (!result || logged || !items.length) return;
+    const clean = items.map(it => ({
+      name: (it.name || "").trim() || "Item",
+      assumedPortion: it.assumedPortion || "",
+      basis: it.basis || "",
+      calories: num(it.calories), protein: num(it.protein), carbs: num(it.carbs), fat: num(it.fat),
+    }));
+    const entry = {
+      meal: result.meal || "Meal",
+      // Top-level numbers derived from the corrected rows — the daily summary and
+      // any other consumer sums entry.calories/protein/carbs/fat off each entry.
+      ...sumItems(clean),
+      items: clean,                                          // keep the breakdown in the log
+      assumptions: Array.isArray(result.assumptions) ? result.assumptions : [],
+      confidence: result.confidence || "",
+      tip: result.tip || "",
+      userEdited: touched,
+      time: new Date().toLocaleTimeString(), date: today,
+    };
+    setLog(l => [entry, ...l].slice(0, 20));
+    setLogged(true);
+    setEditing(false);
+    try { if (user) await saveNutritionEntry(user.uid, entry); }
+    catch (e) { console.error(e); toast("Logged locally — cloud sync failed", "warning"); return; }
+    toast(`Logged: ${entry.meal} — ${entry.calories} cal`, "success");
   }
 
   const totals = log.reduce(
@@ -124,24 +215,97 @@ function CalorieScanner({ user }) {
           </button>
           {result && (
             <div className="macro-result">
-              <h3>{result.meal}</h3>
+              <div className="macro-result-head">
+                <h3>{result.meal}</h3>
+                {CONF_COLOR[conf] && (
+                  <span className="conf-badge" style={{ color:CONF_COLOR[conf] }}>{conf} confidence</span>
+                )}
+              </div>
               <div className="macro-grid">
-                {[["Calories",result.calories,"#FF4D4D"],["Protein",`${result.protein}g`,"#4DC9FF"],["Carbs",`${result.carbs}g`,"#D4A017"],["Fat",`${result.fat}g`,"#00FF88"]].map(([k,v,c])=>(
+                {[["Calories",mealTotals.calories,"#FF4D4D"],["Protein",`${mealTotals.protein}g`,"#4DC9FF"],["Carbs",`${mealTotals.carbs}g`,"#D4A017"],["Fat",`${mealTotals.fat}g`,"#00FF88"]].map(([k,v,c])=>(
                   <div key={k} className="macro-tile" style={{ borderColor:c }}><div className="macro-val" style={{ color:c }}>{v}</div><div className="macro-key">{k}</div></div>
                 ))}
               </div>
-              {result.items?.length>0 && (
-                <div className="food-items">
-                  {result.items.map((item,i) => (
-                    <div key={i} className="food-item">
-                      <span>{item.name}</span>
-                      <span style={{ color:"var(--accent)" }}>{item.calories} cal</span>
-                      <span style={{ color:"#4DC9FF" }}>{item.protein}g P</span>
-                    </div>
-                  ))}
+
+              {/* Per-ingredient reasoning — and the place to correct it. */}
+              <div className="calc-box">
+                <div className="calc-head">
+                  <span className="calc-title"><Calculator size={13}/> How this was calculated</span>
+                  <button className={`calc-edit-btn${editing?" active":""}`} onClick={() => setEditing(e => !e)}>
+                    {editing ? <><Check size={13}/> Done</> : <><Pencil size={13}/> Adjust ingredients</>}
+                  </button>
                 </div>
-              )}
+
+                {items.length===0 && <p className="calc-empty">No ingredients listed — add one before logging.</p>}
+
+                {items.map((item, i) => editing ? (
+                  <div key={i} className="calc-row editing">
+                    <div className="calc-edit-grid">
+                      <div className="calc-field">
+                        <label>Ingredient</label>
+                        <input className="calc-input" value={item.name} placeholder="e.g. Grilled chicken breast"
+                          onChange={e => patchItem(i,"name",e.target.value)}/>
+                      </div>
+                      <div className="calc-field">
+                        <label>Assumed portion</label>
+                        <input className="calc-input" value={item.assumedPortion} placeholder="e.g. ~250 g (2 breasts)"
+                          onChange={e => patchItem(i,"assumedPortion",e.target.value)}/>
+                      </div>
+                    </div>
+                    <div className="calc-edit-nums">
+                      {MACRO_FIELDS.map(([k,label]) => (
+                        <div key={k} className="calc-field">
+                          <label>{label}</label>
+                          <input className="calc-input" type="number" min={0} step="any" value={item[k]}
+                            onChange={e => patchItem(i,k,e.target.value)}/>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="calc-row-actions">
+                      <button className="calc-del-btn" onClick={() => removeItem(i)} title="Remove this ingredient">
+                        <Trash2 size={13}/> Remove
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div key={i} className="calc-row">
+                    <div className="calc-row-top">
+                      <span className="calc-name">{item.name || "Unnamed item"}</span>
+                      {item.assumedPortion && <span className="calc-portion">{item.assumedPortion}</span>}
+                    </div>
+                    {item.basis && <div className="calc-basis">{item.basis}</div>}
+                    <div className="calc-macros">
+                      <span style={{ color:"var(--accent)" }}>{num(item.calories)} cal</span>
+                      <span style={{ color:"#4DC9FF" }}>{num(item.protein)}g P</span>
+                      <span style={{ color:"#D4A017" }}>{num(item.carbs)}g C</span>
+                      <span style={{ color:"#00FF88" }}>{num(item.fat)}g F</span>
+                    </div>
+                  </div>
+                ))}
+
+                {(editing || items.length===0) && (
+                  <button className="calc-add-btn" onClick={addItem}><Plus size={13}/> Add ingredient</button>
+                )}
+
+                {result.assumptions?.length>0 && (
+                  <div className="calc-assumptions">
+                    {result.assumptions.map((a,i) => (
+                      <div key={i} className="calc-assumption"><Info size={12} style={{ flexShrink:0, marginTop:2 }}/><span>{a}</span></div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="calc-derived-note">
+                  Totals above are summed from these rows — change a row and they update.
+                </div>
+              </div>
+
               {result.tip && <div className="nutrition-tip" style={{ display:"flex", alignItems:"flex-start", gap:8 }}><Lightbulb size={15} style={{ flexShrink:0, marginTop:2 }}/> {result.tip}</div>}
+
+              <button className="btn-primary calc-log-btn" onClick={logMeal} disabled={logged || items.length===0}
+                title={logged ? "Already logged — scan again to log another meal" : undefined}>
+                {logged ? <><Check size={16}/> Logged</> : <><Plus size={16}/> Log this meal</>}
+              </button>
             </div>
           )}
         </div>
@@ -160,7 +324,7 @@ function CalorieScanner({ user }) {
           {log.map((item,i) => (
             <div key={i} className="log-entry">
               <div style={{ fontWeight:600,fontSize:14 }}>{item.meal}</div>
-              <div style={{ fontSize:12,color:"#666" }}>{item.time}</div>
+              <div style={{ fontSize:12,color:"#666" }}>{item.time}{item.userEdited ? " · adjusted" : ""}</div>
               <div style={{ fontSize:12,color:"var(--accent)" }}>{item.calories} cal · {item.protein}g P · {item.carbs}g C · {item.fat}g F</div>
             </div>
           ))}

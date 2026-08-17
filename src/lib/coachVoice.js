@@ -4,6 +4,7 @@
 
 import { getUserOnboarding } from "./firebase";
 import { buildKnowledgeContext } from "./knowledgeBase";
+import { buildUserContext } from "./userContext";
 
 // Voice baseline shared across all features
 const BASE_VOICE = `
@@ -83,13 +84,19 @@ OUTPUT: Raw JSON only (no markdown). Schema:
 `.trim(),
 
   nutrition: `
-TASK: Estimate the macros for this meal.
+TASK: Estimate the macros for this meal — and SHOW YOUR WORK, ingredient by ingredient.
+- Break the plate down: every visible component gets its own item (protein, starch, veg, sauce, drink). Never lump a whole plate into one entry.
+- "assumedPortion" MUST state the actual quantity you assumed, with a unit — grams, oz, or a count (e.g. "~150 g (1 medium breast)", "~1 cup cooked (~180 g)"). Portion size is the single biggest source of error, so commit to a number instead of saying "a serving".
+- "basis" is ONE short sentence on how you got the number: what you think the food is, and the reference portion you priced it against (e.g. "Looks skinless with grill marks; 150 g cooked ≈ 165 cal/100 g").
+- "assumptions" lists the guesses that don't belong to a single row — cooking fat, hidden sauces/sugar, what you used for scale.
+- "confidence" is "high", "medium" or "low". Go "low" when the photo is ambiguous, portions are hard to judge, or the cooking method is unclear. Don't fake certainty.
 - Be realistic, not flattering. If it's slop, call it slop.
 - "tip" should be a one-liner in your voice that's actually useful given their goal/diet (e.g. "Solid protein hit but you're light on fiber — toss some greens with your next meal").
 
 OUTPUT: Raw JSON only:
-{"meal":"…","calories":0,"protein":0,"carbs":0,"fat":0,"fiber":0,"items":[{"name":"…","calories":0,"protein":0}],"tip":"…"}
-All macros in grams.
+{"meal":"…","items":[{"name":"Grilled chicken breast","assumedPortion":"~150 g (1 medium breast)","basis":"Looks skinless, grill marks visible; 150 g cooked ≈ 165 cal/100 g","calories":248,"protein":46,"carbs":0,"fat":5}],"assumptions":["Assumed olive oil, not butter","Rice portion estimated against the fork for scale"],"confidence":"medium","tip":"…"}
+- Macros in grams, calories in kcal. Number fields are bare numbers — no units, no ranges, no strings.
+- Do NOT emit top-level "calories"/"protein"/"carbs"/"fat"/"fiber" totals. The app sums the items itself so the user can correct any row, so per-item numbers are the only ones that count.
 `.trim(),
 
   outfit: `
@@ -139,10 +146,19 @@ OUTPUT: Raw JSON only:
 `.trim(),
 };
 
-// Public: get the full system prompt for a feature
+// Public: get the full system prompt for a feature.
+//
+// Every feature gets the rich tracked-data block (physique/posture reads, PRs,
+// what they ate today, consistency) — not just the onboarding answers. That's
+// what lets a meal plan account for their actual lifts and a scan reference
+// their last one. Falls back to the onboarding-only block if that lookup
+// fails, so a Firestore hiccup degrades rather than blanking the persona.
 export async function buildSystemPrompt(feature, uid, profile) {
-  const onboarding = uid ? await getUserOnboarding(uid).catch(() => null) : null;
-  const context = buildContextBlock(onboarding, profile);
+  let context = uid ? await buildUserContext(uid, profile).catch(() => "") : "";
+  if (!context) {
+    const onboarding = uid ? await getUserOnboarding(uid).catch(() => null) : null;
+    context = buildContextBlock(onboarding, profile);
+  }
   const featurePrompt = FEATURE_PROMPTS[feature] || "";
   const knowledge = buildKnowledgeContext(feature);
   return [BASE_VOICE, context, featurePrompt, knowledge].filter(Boolean).join("\n\n");

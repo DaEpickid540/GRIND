@@ -3,10 +3,11 @@ import {
   Bot, Search, Brain, Dna, Palette, CheckSquare, Gamepad2, Bell, Save, User,
   Settings as SettingsIcon, X, Eye, EyeOff, Camera, Zap, AlertTriangle,
   Moon, Sun, Monitor, Pencil, Droplet, Package, Trash2, Flame, Loader2, Award,
+  Compass, Globe, Shield, Sparkles,
 } from "lucide-react";
 import { getSettings, saveSettings, DEFAULT_SETTINGS } from "../lib/userSettings";
 import { PROVIDERS, MODEL_INFO, getModelInfo, getAIConfig, saveAIConfig, clearAIConfig, testKey, getProviderKey, getConfiguredProviders, clearProviderKey } from "../lib/aiProvider";
-import { SEARCH_PROVIDERS, getSearchConfig, saveSearchConfig, clearSearchConfig } from "../lib/searchProvider";
+import { SEARCH_PROVIDERS, providerNeedsKey, getSearchConfig, saveSearchConfig, clearSearchConfig } from "../lib/searchProvider";
 import {
   KB_CATEGORIES, KNOWLEDGE_BASE, getKBConfig, getCategoryMultiplier,
   setCategoryMultiplier, addCustomFact, removeCustomFact,
@@ -29,6 +30,16 @@ const TABS = [
   { id:"account",  icon:User,        label:"Account"        },
 ];
 
+// Explicit per-provider icons — a lookup (not a ternary chain) so a new provider
+// gets the generic Search glyph instead of inheriting whatever fell through last.
+const SEARCH_PROV_ICONS = {
+  tavily:      Sparkles,
+  contextwire: Compass,
+  duckduckgo:  Globe,
+  serpapi:     Search,
+  brave:       Shield,
+};
+
 const ACCENT_PRESETS = [
   { label:"Gold",    value:"#D4A017" },
   { label:"Red",     value:"#FF4D4D" },
@@ -40,10 +51,12 @@ const ACCENT_PRESETS = [
   { label:"White",   value:"#E8E8E8" },
 ];
 
-export default function SettingsModal({ onClose, onResetKey }) {
+export default function SettingsModal({ onClose, onResetKey, initialTab }) {
   const { user, profile, refreshProfile } = useAuth();
   const toast = useToast();
-  const [tab, setTab] = useState("ai");
+  // initialTab lets the AI sidebar deep-link straight to a tab ("open Settings
+  // → AI"); falls back to the AI tab for a normal manual open.
+  const [tab, setTab] = useState(() => TABS.some(t => t.id === initialTab) ? initialTab : "ai");
   const [settings, setSettings] = useState(getSettings());
 
   // AI tab state
@@ -59,7 +72,7 @@ export default function SettingsModal({ onClose, onResetKey }) {
 
   // Search tab state
   const searchCfg = getSearchConfig();
-  const [searchProvider, setSearchProvider] = useState(searchCfg?.provider || "contextwire");
+  const [searchProvider, setSearchProvider] = useState(searchCfg?.provider || "tavily");
   const [searchKey,      setSearchKey]      = useState(searchCfg?.key || "");
   const [searchEnabled,  setSearchEnabled]  = useState(!!searchCfg?.enabled);
   const [showSearchKey,  setShowSearchKey]  = useState(false);
@@ -173,9 +186,12 @@ export default function SettingsModal({ onClose, onResetKey }) {
   }
 
   function saveSearch() {
-    if (!searchKey.trim()) { toast("Enter an API key first", "warning"); return; }
+    const p = SEARCH_PROVIDERS[searchProvider];
+    const needsKey = providerNeedsKey(p);
+    if (needsKey && !searchKey.trim()) { toast("Enter an API key first", "warning"); return; }
+    // Keep any typed key even for keyless providers — switching back shouldn't lose it.
     updateSearchCfg({ key: searchKey.trim() });
-    toast(`${SEARCH_PROVIDERS[searchProvider]?.label || "Search"} key saved ✅`, "success");
+    toast(needsKey ? `${p?.label || "Search"} key saved ✅` : `${p?.label || "Search"} saved — no key needed ✅`, "success");
   }
 
   function clearSearch() {
@@ -230,7 +246,11 @@ export default function SettingsModal({ onClose, onResetKey }) {
 
   const prov = PROVIDERS[aiProvider];
   const activeAI = getAIConfig();
-  const searchProv = SEARCH_PROVIDERS[searchProvider];
+  const searchProv     = SEARCH_PROVIDERS[searchProvider];
+  const searchNeedsKey = providerNeedsKey(searchProv);
+  const activeSearchProv = SEARCH_PROVIDERS[searchCfg?.provider];
+  const searchLive = !!searchCfg?.enabled && !!activeSearchProv &&
+    (!!searchCfg?.key || !providerNeedsKey(activeSearchProv));
 
   return (
     <div className="settings-overlay" onClick={e => e.target===e.currentTarget && onClose()}>
@@ -354,13 +374,17 @@ export default function SettingsModal({ onClose, onResetKey }) {
                 <div className="sform-title">Internet Search</div>
                 <p className="sform-sub">
                   Let the AI ground its answers in live web results — current events, recent
-                  research, today's prices. Pick a provider and add your key. Stored on this device only.
+                  research, today's prices. Pick a provider — most need an API key, DuckDuckGo doesn't.
+                  Keys are stored on this device only.
                 </p>
 
-                {searchCfg?.enabled && searchCfg?.key && (
+                {searchLive && (
                   <div className="active-badge">
-                    <span style={{ color:"var(--accent)" }}>{SEARCH_PROVIDERS[searchCfg.provider]?.label}</span>
-                    <span className="active-badge-model">{SEARCH_PROVIDERS[searchCfg.provider]?.needsProxy ? "key saved · proxy needed" : "active"}</span>
+                    <span style={{ color:"var(--accent)" }}>{activeSearchProv.label}</span>
+                    <span className="active-badge-model">
+                      {activeSearchProv.needsProxy ? "key saved · proxy needed"
+                        : activeSearchProv.id==="duckduckgo" ? "active · definitions only" : "active"}
+                    </span>
                     <span className="live-dot"/>
                   </div>
                 )}
@@ -372,17 +396,21 @@ export default function SettingsModal({ onClose, onResetKey }) {
 
                 <label className="slabel">Provider</label>
                 <div className="provider-grid">
-                  {Object.values(SEARCH_PROVIDERS).map(p => (
+                  {Object.values(SEARCH_PROVIDERS).map(p => {
+                    const PIcon = SEARCH_PROV_ICONS[p.id] || Search;
+                    return (
                     <button key={p.id} className={`prov-btn ${searchProvider===p.id?"active":""}`}
                       onClick={() => updateSearchCfg({ provider: p.id })}>
-                      <span style={{ fontSize:24 }}>{p.id==="contextwire" ? "🧭" : p.id==="serpapi" ? "🔎" : "🦁"}</span>
+                      <PIcon size={24}/>
                       <span style={{ fontWeight:700, fontSize:13 }}>
                         {p.label}
                         {p.recommended && <span className="rec-badge">★ Recommended</span>}
+                        {!providerNeedsKey(p) && <span className="rec-badge">No key</span>}
                       </span>
                       {searchCfg?.provider===p.id && searchCfg?.enabled && <span className="prov-live"/>}
                     </button>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 {searchProv && (
@@ -396,32 +424,38 @@ export default function SettingsModal({ onClose, onResetKey }) {
                         Function that forwards the request and attaches your key) would need to be deployed first.
                         You can still save your key here for when that's wired up, but live searches won't run
                         through {searchProv.label} directly from the browser yet.
-                        <strong> ContextWire works today with zero extra setup.</strong>
+                        <strong> Tavily works today with just a key — or DuckDuckGo with no key at all.</strong>
                       </div>
                     )}
 
-                    <label className="slabel" style={{ marginTop:14 }}>API Key</label>
-                    <div className="key-wrap">
-                      <input className="sinp key-field" type={showSearchKey?"text":"password"}
-                        placeholder="Paste your API key…" value={searchKey}
-                        onChange={e => setSearchKey(e.target.value)}
-                        onPaste={e => { e.preventDefault(); setSearchKey(e.clipboardData.getData("text").trim()); }}/>
-                      <button className="key-vis" onClick={() => setShowSearchKey(s=>!s)}>{showSearchKey?<EyeOff size={15}/>:<Eye size={15}/>}</button>
-                    </div>
-                    <div className="key-hint">
-                      {searchProv.keyHelp}{" "}
-                      <a href={`https://${searchProv.site}`} target="_blank" rel="noopener noreferrer" className="slink">{searchProv.site} →</a>
-                    </div>
+                    {searchNeedsKey && (
+                      <>
+                        <label className="slabel" style={{ marginTop:14 }}>API Key</label>
+                        <div className="key-wrap">
+                          <input className="sinp key-field" type={showSearchKey?"text":"password"}
+                            placeholder="Paste your API key…" value={searchKey}
+                            onChange={e => setSearchKey(e.target.value)}
+                            onPaste={e => { e.preventDefault(); setSearchKey(e.clipboardData.getData("text").trim()); }}/>
+                          <button className="key-vis" onClick={() => setShowSearchKey(s=>!s)}>{showSearchKey?<EyeOff size={15}/>:<Eye size={15}/>}</button>
+                        </div>
+                        <div className="key-hint">
+                          {searchProv.keyHelp}{" "}
+                          <a href={`https://${searchProv.site}`} target="_blank" rel="noopener noreferrer" className="slink">{searchProv.site} →</a>
+                        </div>
+                      </>
+                    )}
 
                     <div className="sprov-note">
+                      {searchProv.id==="tavily"      && "Search API built for AI apps — real general web results with citations, callable straight from the browser. Free tier at tavily.com; keys start with tvly-."}
                       {searchProv.id==="contextwire" && "Multi-source research engine with no LLM lock-in — built for client apps, works directly from the browser, free tier available."}
+                      {searchProv.id==="duckduckgo"  && "Free and keyless, but it's DuckDuckGo's Instant Answer API — not a live web search. It answers \"what is X\" style lookups (creatine, BMI, intermittent fasting) and returns nothing at all for open-ended questions like \"best protein intake 2026\"."}
                       {searchProv.id==="serpapi"     && "Structured Google/Bing/DuckDuckGo results as JSON. Needs a proxy to call from a hosted browser app."}
                       {searchProv.id==="brave"       && "Independent search index with a generous free tier and a privacy-first stance. Needs a proxy to call from a hosted browser app."}
                     </div>
 
                     <div className="sbtn-row">
-                      <button className="sbtn-save" onClick={saveSearch} disabled={!searchKey.trim()}>Save</button>
-                      {(searchCfg?.key || searchKey) && <button className="sbtn-danger" onClick={clearSearch}>Clear</button>}
+                      <button className="sbtn-save" onClick={saveSearch} disabled={searchNeedsKey && !searchKey.trim()}>Save</button>
+                      {(searchCfg?.key || searchKey || !searchNeedsKey) && <button className="sbtn-danger" onClick={clearSearch}>Clear</button>}
                     </div>
                   </>
                 )}

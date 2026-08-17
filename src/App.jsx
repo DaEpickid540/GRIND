@@ -3,10 +3,11 @@ import { Menu } from "lucide-react";
 import { AuthProvider, useAuth } from "./hooks/useAuth";
 import { ToastProvider } from "./components/Toast";
 import { hasValidKey } from "./lib/aiProvider";
-import { applySettings, getSettings } from "./lib/userSettings";
+import { applySettings, getSettings, saveSettings } from "./lib/userSettings";
 import { hasCompletedOnboarding } from "./lib/firebase";
 import { initReminders, ensurePermission } from "./lib/reminders";
 import Sidebar from "./components/Sidebar";
+import AISidebar, { AISidebarToggle } from "./components/AISidebar";
 
 // Eager: tiny + needed immediately on load
 import Login from "./pages/Login";
@@ -53,8 +54,10 @@ function AppInner() {
   const [needsKey,        setNeedsKey]        = useState(false);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [showSettings,    setShowSettings]    = useState(false);
+  const [settingsTab,     setSettingsTab]     = useState(null);
   const [publicUID,       setPublicUID]       = useState(null);
   const [sidebarOpen,     setSidebarOpen]     = useState(false);
+  const [aiOpen,          setAiOpen]          = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -90,7 +93,24 @@ function AppInner() {
   if (!user) return <Login/>;
 
   const navTo = (p) => { setPage(p); setSidebarOpen(false); };
-  const openSettings = () => { setShowSettings(true); setSidebarOpen(false); };
+  const openSettings = (tab) => {
+    setSettingsTab(typeof tab === "string" ? tab : null);
+    setShowSettings(true);
+    setSidebarOpen(false);
+  };
+
+  // Handed to the AI sidebar's action runner — the only way it can touch the
+  // app. Deliberately just these three: navigation, opening settings, and
+  // local appearance settings. Nothing here can delete, spend, or send.
+  const aiHandlers = {
+    navigate: navTo,
+    openSettings,
+    updateSetting: (k, v) => {
+      const next = { ...getSettings(), [k]: v };
+      saveSettings(next);
+      applySettings(next);
+    },
+  };
 
   // Public profile overlay
   if (publicUID) return (
@@ -108,11 +128,11 @@ function AppInner() {
   );
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell${aiOpen ? " ai-open" : ""}`}>
       <Suspense fallback={null}>
         {needsKey && <APIKeyModal onDone={() => setNeedsKey(false)} onShowTutorial={() => { setNeedsKey(false); navTo("tutorial"); }}/>}
         {!needsKey && needsOnboarding && <OnboardingModal onDone={() => { setNeedsOnboarding(false); localStorage.setItem("grind_onboarded","1"); }}/>}
-        {showSettings && <SettingsModal onClose={() => setShowSettings(false)} onResetKey={() => { setShowSettings(false); setNeedsKey(true); }}/>}
+        {showSettings && <SettingsModal initialTab={settingsTab} onClose={() => setShowSettings(false)} onResetKey={() => { setShowSettings(false); setNeedsKey(true); }}/>}
       </Suspense>
       <Sidebar page={page} setPage={navTo} onOpenSettings={openSettings}
                isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)}/>
@@ -137,6 +157,8 @@ function AppInner() {
           {page==="stats"       && <Stats/>}
         </Suspense>
       </main>
+      <AISidebarToggle open={aiOpen} onClick={() => setAiOpen(true)}/>
+      <AISidebar open={aiOpen} onClose={() => setAiOpen(false)} page={page} handlers={aiHandlers}/>
     </div>
   );
 }

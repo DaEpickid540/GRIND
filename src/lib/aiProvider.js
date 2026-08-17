@@ -231,7 +231,9 @@ export function currentModelSupportsVision() {
 }
 
 // ── Unified AI call ────────────────────────────────────────────────────────
-export async function callAI({ system, userMessage, imageBase64, imageMime, maxTokens = 1000 }) {
+// `history` is prior turns as [{ role: "user"|"assistant", content }] — needed
+// for the chat sidebar; every other feature is single-shot and omits it.
+export async function callAI({ system, userMessage, imageBase64, imageMime, maxTokens = 1000, history = [] }) {
   const cfg = getAIConfig();
   if (!cfg?.provider || !cfg?.key) throw new Error("NO_KEY");
 
@@ -255,7 +257,7 @@ export async function callAI({ system, userMessage, imageBase64, imageMime, maxT
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "Content-Type":"application/json", "x-api-key":key, "anthropic-version":"2023-06-01" },
-      body: JSON.stringify({ model:actualModel, max_tokens:maxTokens, system, messages:[{ role:"user", content }] }),
+      body: JSON.stringify({ model:actualModel, max_tokens:maxTokens, system, messages:[...history, { role:"user", content }] }),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -275,7 +277,15 @@ export async function callAI({ system, userMessage, imageBase64, imageMime, maxT
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${actualModel}:generateContent?key=${key}`, {
       method: "POST",
       headers: { "Content-Type":"application/json" },
-      body: JSON.stringify({ contents:[{ parts:bodyParts }], generationConfig:{ maxOutputTokens:maxTokens } }),
+      body: JSON.stringify({
+        // Gemini calls the assistant side "model", and every entry needs an
+        // explicit role once there's more than one.
+        contents: [
+          ...history.map(h => ({ role: h.role === "assistant" ? "model" : "user", parts: [{ text: h.content }] })),
+          { role: "user", parts: bodyParts },
+        ],
+        generationConfig: { maxOutputTokens: maxTokens },
+      }),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -289,6 +299,7 @@ export async function callAI({ system, userMessage, imageBase64, imageMime, maxT
   if (provider === "openai") {
     const messages = [];
     if (system) messages.push({ role:"system", content:system });
+    if (history.length) messages.push(...history);
     const userContent = imageBase64
       ? [{ type:"image_url", image_url:{ url:`data:${imageMime||"image/jpeg"};base64,${imageBase64}` } }, { type:"text", text:userMessage }]
       : userMessage;
@@ -311,6 +322,7 @@ export async function callAI({ system, userMessage, imageBase64, imageMime, maxT
   if (provider === "groq") {
     const messages = [];
     if (system) messages.push({ role:"system", content:system });
+    if (history.length) messages.push(...history);
     const userContent = imageBase64
       ? [{ type:"image_url", image_url:{ url:`data:${imageMime||"image/jpeg"};base64,${imageBase64}` } }, { type:"text", text:userMessage }]
       : userMessage;
@@ -333,6 +345,7 @@ export async function callAI({ system, userMessage, imageBase64, imageMime, maxT
   if (provider === "openrouter") {
     const messages = [];
     if (system) messages.push({ role:"system", content:system });
+    if (history.length) messages.push(...history);
     const userContent = imageBase64
       ? [{ type:"image_url", image_url:{ url:`data:${imageMime||"image/jpeg"};base64,${imageBase64}` } }, { type:"text", text:userMessage }]
       : userMessage;
@@ -359,6 +372,7 @@ export async function callAI({ system, userMessage, imageBase64, imageMime, maxT
 
     const messages = [];
     if (system) messages.push({ role:"system", content:system });
+    if (history.length) messages.push(...history);
     const userContent = imageBase64
       ? [{ type:"image_url", image_url:{ url:`data:${imageMime||"image/jpeg"};base64,${imageBase64}` } }, { type:"text", text:userMessage }]
       : userMessage;
