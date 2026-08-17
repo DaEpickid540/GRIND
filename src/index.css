@@ -1200,6 +1200,28 @@ body.no-animations *, body.no-animations *::before, body.no-animations *::after 
 }
 .hamburger:hover { background: var(--bg3); }
 
+/* Persistent mobile header — replaces the floating hamburger + floating AI
+   FAB on narrow viewports, since both drifted over page content (checkin
+   bar, scan results). Desktop keeps the always-visible sidebar + FAB. */
+.mobile-topbar {
+  display: none;
+  position: fixed; top: 0; left: 0; right: 0; z-index: 90;
+  align-items: center; justify-content: space-between;
+  height: calc(56px + env(safe-area-inset-top, 0px));
+  padding: env(safe-area-inset-top, 0px) 12px 0;
+  box-sizing: border-box;
+  background: var(--bg1);
+  border-bottom: 1px solid var(--border);
+}
+.mtb-btn {
+  width: 38px; height: 38px; border-radius: 9px; flex-shrink: 0;
+  background: var(--bg2); border: 1px solid var(--border2); color: var(--text);
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.mtb-btn:active { background: var(--bg3); }
+.mtb-brand { font-family: 'Bebas Neue', sans-serif; font-size: 19px; letter-spacing: 2px; color: var(--accent); }
+.mtb-actions { display: flex; gap: 8px; }
+
 /* Overlay backdrop for mobile sidebar */
 .sidebar-overlay {
   display: none;
@@ -1249,8 +1271,11 @@ body.no-animations *, body.no-animations *::before, body.no-animations *::after 
   /* Main area takes full width */
   .main-area { margin-left: 0; }
 
-  /* Show hamburger */
+  /* Show hamburger (public-profile view only now — main app uses the topbar) */
   .hamburger { display: flex; }
+
+  /* Persistent mobile header replaces the floating hamburger + AI FAB */
+  .mobile-topbar { display: flex; }
 
   /* Show overlay when sidebar is open */
   .sidebar-overlay { display: block; }
@@ -1269,8 +1294,8 @@ body.no-animations *, body.no-animations *::before, body.no-animations *::after 
      cascade and wins at equal specificity, so setting it here would be a
      silent no-op. See that rule for why the offset is what it is. */
 
-  /* Page content: less padding, full width */
-  .page-content { padding: 60px 16px 16px; max-width: 100%; }
+  /* Page content: clear the fixed topbar, less padding, full width */
+  .page-content { padding: calc(56px + env(safe-area-inset-top, 0px) + 16px) 16px 16px; max-width: 100%; }
   .page-header { flex-wrap: wrap; gap: 12px; }
 
   /* Login: single column */
@@ -2541,11 +2566,10 @@ body.no-animations *, body.no-animations *::before, body.no-animations *::after 
 @media (max-width: 900px) {
   .ai-sidebar { width: 100%; }
   .app-shell.ai-open .main-area { padding-right: 0; }
-  /* checkin-bar only renders on Dashboard and wraps to two lines at narrow
-     widths (measured ~99px tall at 375px) — this was sitting under the FAB
-     with no clearance at all. Fixed clearance rather than measured, since
-     checkin-bar isn't present on every page the FAB is. */
-  .ai-sb-fab { right: 14px; bottom: 132px; }
+  /* The floating FAB is replaced by the topbar's chat icon on mobile — it
+     used to drift over page content (checkin bar, scan results) at narrow
+     widths; a fixed header slot doesn't have that problem. */
+  .ai-sb-fab { display: none; }
 }
 
 /* ── PROVIDER BRAND LOGOS (real images, replacing emoji circles) ──────────

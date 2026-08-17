@@ -9,6 +9,7 @@ import { initReminders, ensurePermission } from "./lib/reminders";
 import Sidebar from "./components/Sidebar";
 import AISidebar, { AISidebarToggle } from "./components/AISidebar";
 import InstallPrompt from "./components/InstallPrompt";
+import MobileTopbar from "./components/MobileTopbar";
 
 // Eager: tiny + needed immediately on load
 import Login from "./pages/Login";
@@ -144,7 +145,7 @@ function AppInner() {
                isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)}/>
       {sidebarOpen && <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)}/>}
       <main className="main-area">
-        <button className="hamburger" onClick={() => setSidebarOpen(true)} aria-label="Open menu"><Menu size={20}/></button>
+        <MobileTopbar onOpenSidebar={() => setSidebarOpen(true)} onOpenSettings={openSettings} onOpenAI={() => setAiOpen(true)}/>
         <Suspense fallback={<PageLoader/>}>
           {page==="dashboard"   && <Dashboard/>}
           {page==="plan"        && <WeeklyPlan/>}
