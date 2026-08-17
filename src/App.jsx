@@ -8,6 +8,7 @@ import { hasCompletedOnboarding } from "./lib/firebase";
 import { initReminders, ensurePermission } from "./lib/reminders";
 import Sidebar from "./components/Sidebar";
 import AISidebar, { AISidebarToggle } from "./components/AISidebar";
+import InstallPrompt from "./components/InstallPrompt";
 
 // Eager: tiny + needed immediately on load
 import Login from "./pages/Login";
@@ -78,6 +79,11 @@ function AppInner() {
     const params = new URLSearchParams(window.location.search);
     const profUID = params.get("profile");
     if (profUID) { setPublicUID(profUID); window.history.replaceState({},""," "); }
+    // Manifest "shortcuts" (long-press app icon) link to /?page=<id>; routing is
+    // plain React state rather than URL-based, so read the param once on boot
+    // and clear it from the URL so it doesn't linger after normal navigation.
+    const shortcutPage = params.get("page");
+    if (shortcutPage) { setPage(shortcutPage); window.history.replaceState({},""," "); }
   }, [user]);
 
   useEffect(() => {
@@ -159,6 +165,7 @@ function AppInner() {
       </main>
       <AISidebarToggle open={aiOpen} onClick={() => setAiOpen(true)}/>
       <AISidebar open={aiOpen} onClose={() => setAiOpen(false)} page={page} handlers={aiHandlers}/>
+      <InstallPrompt/>
     </div>
   );
 }

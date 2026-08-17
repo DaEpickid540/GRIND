@@ -2558,4 +2558,187 @@ body.no-animations *, body.no-animations *::before, body.no-animations *::after 
 }
 .icon-credit { margin-top: 14px; font-size: 11px; color: var(--muted); text-align: center; }
 .icon-credit a { color: var(--muted2); text-decoration: underline; }
+
+/* ── DAILY WEIGHT TRACKER (Dashboard widget) ──────────────────────────────── */
+.wt-reminder-banner {
+  display: flex; align-items: center; gap: 10px;
+  background: #1a1205; border: 1px solid #6b4f1a; color: #ffcf80;
+  border-radius: 10px; padding: 10px 14px; margin-bottom: 16px; font-size: 13px;
+}
+.wt-reminder-banner span { flex: 1; }
+.wt-reminder-banner button {
+  background: none; border: none; color: #ffcf80; cursor: pointer;
+  display: flex; align-items: center; opacity: .75; padding: 2px;
+}
+.wt-reminder-banner button:hover { opacity: 1; }
+
+.wt-widget {
+  background: var(--bg2); border: 1px solid var(--border); border-radius: 12px;
+  padding: 18px 20px; margin-bottom: 24px;
+}
+.wt-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 8px; }
+.wt-title { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+.wt-avg-chip { font-size: 12px; color: var(--accent); font-family: 'JetBrains Mono', monospace; background: var(--bg3); border: 1px solid var(--border2); border-radius: 20px; padding: 4px 12px; }
+
+.wt-body { display: flex; flex-direction: column; gap: 12px; }
+
+.wt-log-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.wt-input {
+  flex: 1; min-width: 120px; background: var(--bg3); border: 1px solid var(--border2);
+  border-radius: 8px; color: var(--text); padding: 9px 12px; font-family: 'Syne', sans-serif; font-size: 14px;
+}
+.wt-input:focus { outline: none; border-color: var(--accent); }
+.wt-unit-select {
+  background: var(--bg3); border: 1px solid var(--border2); border-radius: 8px;
+  color: var(--text); padding: 9px 10px; font-family: 'Syne', sans-serif; font-size: 13px; cursor: pointer;
+}
+.wt-log-btn { width: auto; padding: 9px 20px; font-size: 15px; flex-shrink: 0; }
+
+.wt-logged-note { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--green); }
+
+.wt-trend { margin: -4px -6px; }
+.wt-empty-trend { font-size: 12px; color: var(--muted); font-style: italic; }
+
+.wt-goal-block { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.wt-goal-bar-bg { flex: 1; min-width: 100px; height: 8px; background: var(--bg3); border-radius: 6px; overflow: hidden; }
+.wt-goal-bar-fill { height: 100%; background: var(--accent); border-radius: 6px; transition: width .5s cubic-bezier(.4,0,.2,1); }
+.wt-goal-label { font-size: 12px; color: var(--muted2); white-space: nowrap; }
+
+.wt-goal-edit-btn {
+  display: inline-flex; align-items: center; gap: 6px; background: var(--bg3);
+  border: 1px solid var(--border2); color: var(--muted2); border-radius: 8px;
+  padding: 7px 12px; font-size: 12px; cursor: pointer; transition: border-color .2s, color .2s;
+  width: fit-content; font-family: 'Syne', sans-serif;
+}
+.wt-goal-edit-btn:hover { border-color: var(--accent); color: var(--accent); }
+.wt-set-goal-btn { align-self: flex-start; }
+
+.wt-goal-edit-form { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+/* ── STATS PAGE DEPTH OVERHAUL ─────────────────────────────────────────────
+   New section for the Stats page depth/visual pass: period breakdown,
+   custom chart tooltips, consistency heatmap, personal records. Appended
+   rather than interleaved with existing rules to avoid collisions with
+   other concurrent work touching this file. */
+
+/* Custom recharts tooltip (dark-themed replacement for the default white box) */
+.stats-tooltip {
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  padding: 10px 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.4);
+  font-size: 12px;
+  min-width: 130px;
+}
+.stats-tooltip-label { font-weight: 700; color: var(--text); margin-bottom: 6px; font-size: 12px; }
+.stats-tooltip-row { display: flex; align-items: center; gap: 6px; padding: 2px 0; color: var(--muted2); }
+.stats-tooltip-row + .stats-tooltip-row { margin-top: 2px; }
+.stats-tooltip-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.stats-tooltip-key { flex: 1; }
+.stats-tooltip-val { color: var(--text); font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+
+/* Period selector tabs */
+.stats-period-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
+.stats-period-tabs { display: flex; gap: 6px; background: var(--bg3); border: 1px solid var(--border2); border-radius: 8px; padding: 3px; }
+.stats-period-tab {
+  padding: 6px 14px; border: none; border-radius: 6px; background: transparent;
+  color: var(--muted2); font-size: 12px; font-weight: 600; cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.stats-period-tab:hover { color: var(--text); }
+.stats-period-tab.active { background: var(--accent); color: #000; }
+
+.stats-period-label { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 1px; color: var(--text); margin-bottom: 14px; }
+
+.stats-period-metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+.spm-item { background: var(--bg3); border: 1px solid var(--border2); border-radius: 10px; padding: 12px; text-align: center; }
+.spm-val { display: block; font-family: 'Bebas Neue', sans-serif; font-size: 26px; color: var(--accent); line-height: 1; }
+.spm-lbl { display: block; font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; margin-top: 4px; }
+
+.stats-period-compare { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
+.stats-compare-item { display: flex; align-items: center; gap: 8px; background: var(--bg3); border: 1px solid var(--border2); border-radius: 10px; padding: 10px 12px; }
+.stats-compare-icon.up { color: var(--green); }
+.stats-compare-icon.down { color: var(--accent); }
+.stats-compare-icon.flat { color: var(--muted); }
+.stats-compare-delta { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 14px; color: var(--text); }
+.stats-compare-delta.up { color: var(--green); }
+.stats-compare-delta.down { color: var(--accent); }
+.stats-compare-delta.flat { color: var(--muted); }
+.stats-compare-sub { font-size: 10px; color: var(--muted); margin-top: 1px; }
+
+.stats-period-days { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
+.spd-item { display: flex; align-items: center; gap: 6px; font-size: 12px; padding: 7px 12px; border-radius: 8px; background: var(--bg3); border: 1px solid var(--border2); color: var(--muted2); }
+.spd-item.best { color: var(--green); border-color: color-mix(in srgb, var(--green) 40%, var(--border2)); }
+.spd-item.worst { color: var(--muted2); }
+
+.stats-cat-breakdown { display: flex; flex-direction: column; gap: 8px; margin-bottom: 4px; }
+.scb-row { display: grid; grid-template-columns: 90px 1fr 40px; align-items: center; gap: 10px; }
+.scb-label { font-size: 12px; color: var(--muted2); }
+.scb-bar-bg { height: 8px; border-radius: 4px; background: var(--bg3); overflow: hidden; }
+.scb-bar-fill { height: 100%; background: var(--accent); border-radius: 4px; transition: width .4s ease-out; }
+.scb-val { font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--muted); text-align: right; }
+
+.stats-period-trend { margin-top: 18px; }
+
+/* Personal record callouts */
+.stats-records-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.stats-record-card { background: var(--bg3); border: 1px solid var(--border2); border-radius: 10px; padding: 16px 12px; text-align: center; }
+.stats-record-icon { color: var(--accent); margin-bottom: 6px; }
+.stats-record-val { font-family: 'Bebas Neue', sans-serif; font-size: 24px; color: var(--text); line-height: 1; }
+.stats-record-lbl { font-size: 10.5px; color: var(--muted); margin-top: 6px; line-height: 1.3; }
+
+/* Consistency heatmap (GitHub-contributions style) */
+.stats-heatmap-scroll { overflow-x: auto; padding-bottom: 4px; }
+.stats-heatmap-grid { display: flex; gap: 3px; width: max-content; }
+.stats-heatmap-col { display: flex; flex-direction: column; gap: 3px; }
+.stats-heatmap-cell { width: 11px; height: 11px; border-radius: 2px; }
+.stats-heatmap-legend { display: flex; align-items: center; gap: 4px; margin-top: 12px; font-size: 10px; color: var(--muted); }
+.stats-heatmap-legend .stats-heatmap-cell { width: 10px; height: 10px; }
+
+@media (max-width: 900px) {
+  .stats-period-metrics { grid-template-columns: repeat(2, 1fr); }
+  .stats-period-compare { grid-template-columns: 1fr; }
+  .stats-records-row { grid-template-columns: repeat(2, 1fr); }
+  .scb-row { grid-template-columns: 70px 1fr 36px; }
+}
 .icon-credit a:hover { color: var(--text); }
+
+/* ── PWA INSTALL BANNER ────────────────────────────────────────────────────
+   Custom "Install GRIND" affordance (see src/components/InstallPrompt.jsx).
+   Shown for Android/Desktop Chrome & Edge via beforeinstallprompt, and as a
+   purely instructional variant on iOS Safari (no install API there). */
+.install-banner {
+  position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%);
+  z-index: 200; display: flex; align-items: center; gap: 12px;
+  background: var(--bg2); border: 1px solid var(--border2); border-radius: 14px;
+  padding: 12px 14px; max-width: min(420px, calc(100vw - 32px));
+  box-shadow: 0 10px 30px rgba(0,0,0,.5);
+  animation: installBannerIn .3s ease;
+}
+@keyframes installBannerIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(12px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+.install-banner-icon {
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  width: 34px; height: 34px; border-radius: 10px; background: var(--bg4); color: var(--accent);
+}
+.install-banner-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.install-banner-text strong { font-family: 'Syne', sans-serif; font-size: 13px; color: var(--text); }
+.install-banner-text span { font-size: 11.5px; color: var(--muted2); line-height: 1.35; }
+.install-banner-btn {
+  flex-shrink: 0; background: var(--accent); color: #000; border: none; border-radius: 8px;
+  padding: 8px 14px; font-family: 'Syne', sans-serif; font-weight: 700; font-size: 12.5px;
+  cursor: pointer; transition: opacity .2s;
+}
+.install-banner-btn:hover { opacity: .88; }
+.install-banner-close {
+  flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; border-radius: 7px; background: transparent; border: none;
+  color: var(--muted); cursor: pointer; transition: background .2s, color .2s;
+}
+.install-banner-close:hover { background: var(--bg4); color: var(--text); }
+@media (max-width: 640px) {
+  .install-banner { bottom: 76px; } /* clear the mobile check-in bar */
+}

@@ -96,6 +96,32 @@ export async function submitCheckIn(uid, habits, todayStr, habitCategories) {
   const newLevel = Math.floor(Math.sqrt(newXP / 100)) + 1;
   const levelUp  = newLevel > (profile.level||1);
 
+  // --- Journey system: inactivity decay + rolling check-in frequency ---
+  // (see getEffectiveLevelInfo() in src/data/gameData.js for how these feed
+  // into the displayed/effective level; XP itself is never touched here.)
+  //
+  // Detect a long gap using the OLD lastCheckIn (`last`), i.e. BEFORE we
+  // overwrite it with todayStr below — that's "checking in again after a
+  // long gap", exactly when the reset should be applied.
+  const INACTIVITY_RESET_DAYS = 35;
+  const REQUALIFY_CHECKINS_30D = 21;
+  let levelDecayedAt = profile.levelDecayedAt || null;
+  if (last) {
+    const daysSinceLast = Math.floor((new Date(todayStr) - new Date(last)) / 86400000);
+    if (daysSinceLast >= INACTIVITY_RESET_DAYS) levelDecayedAt = todayStr;
+  }
+
+  // Rolling ~30-day check-in counter, kept as a small pruned array of dates
+  // so reading it back is O(1)-ish (no Firestore query needed) for
+  // getEffectiveLevelInfo()'s frequency gate.
+  const cutoff = new Date(todayStr); cutoff.setDate(cutoff.getDate() - 30);
+  const priorRecent = Array.isArray(profile.recentCheckins) ? profile.recentCheckins : [];
+  const recentCheckins = [...priorRecent.filter(d => d !== todayStr && new Date(d) >= cutoff), todayStr].sort();
+  const checkinsLast30d = recentCheckins.length;
+
+  // Once they've rebuilt real consistency after a decay, lift the cap.
+  if (levelDecayedAt && checkinsLast30d >= REQUALIFY_CHECKINS_30D) levelDecayedAt = null;
+
   await updateDoc(doc(db,"grind_users",uid), {
     streak: newStreak,
     longestStreak: Math.max(newStreak, profile.longestStreak||0),
@@ -103,6 +129,9 @@ export async function submitCheckIn(uid, habits, todayStr, habitCategories) {
     xp: newXP,
     level: newLevel,
     coins: newCoins,
+    recentCheckins,
+    checkinsLast30d,
+    levelDecayedAt,
   });
   await setDoc(doc(db,"grind_users",uid,"checkins",todayStr), {
     habits, xpGained, streakBonus, streak: newStreak, timestamp: serverTimestamp(),
@@ -723,3 +752,42 @@ export async function syncMemberProgress(uid, profile) {
     }).catch(()=>{}) // member doc may not exist if they left
   ));
 }
+
+// ── Daily Weight Tracker ────────────────────────────────────────────────
+// Data model: grind_users/{uid}/weight/{dateStr}  — one doc per calendar day
+// (dateStr, e.g. "2026-08-16", is used as the doc ID itself rather than an
+// auto-id like nutrition/scans use, because weight is a single tracked value
+// per day that must stay editable in place instead of piling up duplicate
+// entries for the same date). Each doc: { weight:Number, unit:"lbs"|"kg",
+// date:dateStr, timestamp:serverTimestamp() }.
+//
+// Goal target weight is stored directly on the profile doc (grind_users/{uid})
+// as weightGoal / weightGoalUnit via updateUserProfile, alongside the rest of
+// the user's top-level profile fields.
+
+// Create or overwrite today's (or any given date's) entry — this is what
+// gives us "one entry per day, editable" instead of duplicate rows.
+export const saveWeightEntry = (uid, entry) =>
+  setDoc(doc(db, "grind_users", uid, "weight", entry.date), {
+    weight: entry.weight,
+    unit: entry.unit,
+    date: entry.date,
+    timestamp: serverTimestamp(),
+  });
+
+// Fetch a single day's entry (used to check "already logged today").
+export const getWeightEntry = async (uid, dateStr) => {
+  const snap = await getDoc(doc(db, "grind_users", uid, "weight", dateStr));
+  return snap.exists() ? snap.data() : null;
+};
+
+// Recent weight history, most-recent first, for trend/weekly-average calcs.
+export const getWeightLog = async (uid, { limit: n = 60 } = {}) => {
+  const q = query(collection(db, "grind_users", uid, "weight"), orderBy("date", "desc"), limit(n));
+  const s = await getDocs(q);
+  return s.docs.map(d => ({ id: d.id, ...d.data() }));
+};
+
+// Target weight goal — persisted on the main profile doc.
+export const saveWeightGoal = (uid, targetWeight, unit) =>
+  updateUserProfile(uid, { weightGoal: targetWeight, weightGoalUnit: unit });

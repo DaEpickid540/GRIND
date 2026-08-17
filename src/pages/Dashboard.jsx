@@ -1,14 +1,58 @@
-import { useState, useEffect } from "react";
-import { Tent, CheckCircle2, Pencil, ClipboardList } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { LineChart, Line, ResponsiveContainer, Tooltip } from "recharts";
+import { Tent, CheckCircle2, Pencil, ClipboardList, Scale, Target, X } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import {
   submitCheckIn, updateCheckIn, getTodayCheckIn,
   setExcuse, saveCustomHabits, saveCustomExcuses,
+  saveWeightEntry, getWeightEntry, getWeightLog, saveWeightGoal, getUserOnboarding,
 } from "../lib/firebase";
 import { HABIT_CATEGORIES, EXCUSES, STREAK_MILESTONES } from "../data/gameData";
 import { useToast } from "../components/Toast";
 import Confetti from "../components/Confetti";
 import HabitCustomizer from "../components/HabitCustomizer";
+
+// ── Weight tracker: pure calculation helpers (kept side-effect free so they're
+//    easy to unit test in isolation — see scratchpad test script) ──────────
+const round1 = n => Math.round(n * 10) / 10;
+
+// entries: array of {date:"YYYY-MM-DD", weight:Number, ...}, any order.
+// Returns null when there's no history at all (brand-new user).
+export function calcWeeklyAverage(entries) {
+  if (!entries || entries.length === 0) return null;
+  const sorted = [...entries].sort((a, b) => b.date.localeCompare(a.date));
+  const recent = sorted.slice(0, 7);
+  const sum = recent.reduce((s, e) => s + Number(e.weight), 0);
+  return round1(sum / recent.length);
+}
+
+// Shapes ascending-by-date data for the recharts trend line, capped to the
+// most recent `count` entries so the sparkline stays compact.
+export function calcTrendData(entries, count = 14) {
+  if (!entries || entries.length === 0) return [];
+  const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date));
+  return sorted.slice(-count).map(e => ({ date: e.date, weight: Number(e.weight) }));
+}
+
+// direction/delta/pct progress toward a goal weight, independent of whether
+// the goal is "lose" or "gain" relative to where the user started.
+export function calcGoalProgress(currentWeight, goalWeight, startWeight) {
+  if (currentWeight == null || goalWeight == null) return null;
+  const start = startWeight != null ? startWeight : currentWeight;
+  const direction = goalWeight < start ? "lose" : goalWeight > start ? "gain" : "maintain";
+  const delta = round1(Math.abs(goalWeight - currentWeight));
+
+  if (direction === "maintain") {
+    return { direction, delta, pct: 100, reached: true };
+  }
+
+  const reached = direction === "lose" ? currentWeight <= goalWeight : currentWeight >= goalWeight;
+  const total = Math.abs(goalWeight - start);
+  const progressed = direction === "lose" ? start - currentWeight : currentWeight - start;
+  const pct = total === 0 ? 100 : Math.max(0, Math.min(100, Math.round((progressed / total) * 100)));
+
+  return { direction, delta, pct, reached };
+}
 
 function CompletionRing({ pct, size=80, stroke=7, color="var(--accent)" }) {
   const r = (size - stroke*2) / 2, circ = 2 * Math.PI * r;
@@ -41,6 +85,17 @@ export default function Dashboard() {
   const [excuseDays,       setExcuseDays]       = useState(2);
   const [saveAsPreset,     setSaveAsPreset]      = useState(false);
 
+  // Weight tracker state
+  const [weightLog,        setWeightLog]        = useState([]);      // recent entries, most-recent first
+  const [todayWeight,      setTodayWeight]       = useState(null);    // today's saved entry, if any
+  const [weightInput,      setWeightInput]       = useState("");
+  const [weightUnit,       setWeightUnit]        = useState("lbs");
+  const [weightSaving,     setWeightSaving]      = useState(false);
+  const [weightLoaded,     setWeightLoaded]      = useState(false);
+  const [showGoalEdit,     setShowGoalEdit]      = useState(false);
+  const [goalInput,        setGoalInput]         = useState("");
+  const [weightPromptDismissed, setWeightPromptDismissed] = useState(false);
+
   const today = new Date().toISOString().split("T")[0];
 
   const activeCategories = profile?.customHabits  || HABIT_CATEGORIES;
@@ -61,6 +116,35 @@ export default function Dashboard() {
       });
     }
   }, [profile?.lastCheckIn]);
+
+  // Load weight tracker data: recent log, today's entry (if logged), and the
+  // user's preferred unit (falling back to their onboarding weightUnit so we
+  // don't introduce a second, inconsistent unit toggle).
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const [log, entry, onboarding] = await Promise.all([
+          getWeightLog(user.uid, { limit: 60 }),
+          getWeightEntry(user.uid, today),
+          getUserOnboarding(user.uid),
+        ]);
+        if (cancelled) return;
+        setWeightLog(log);
+        setTodayWeight(entry);
+        if (entry) {
+          setWeightInput(String(entry.weight));
+          setWeightUnit(entry.unit || "lbs");
+        } else {
+          setWeightUnit(onboarding?.weightUnit || "lbs");
+        }
+      } finally {
+        if (!cancelled) setWeightLoaded(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [user]);
 
   // Keyboard shortcut: Ctrl+Enter to submit
   useEffect(() => {
@@ -194,12 +278,61 @@ export default function Dashboard() {
     await refreshProfile();
   }
 
+  // ── Weight tracker ─────────────────────────────────────────────────────
+  async function handleLogWeight() {
+    const val = Number(weightInput);
+    if (!val || val <= 0) { toast("Enter a valid weight", "warning"); return; }
+    setWeightSaving(true);
+    try {
+      const entry = { weight: val, unit: weightUnit, date: today };
+      await saveWeightEntry(user.uid, entry);
+      setTodayWeight(entry);
+      setWeightLog(prev => [entry, ...prev.filter(e => e.date !== today)]);
+      setWeightPromptDismissed(true);
+      toast(todayWeight ? "Weight updated ✅" : "Weight logged ✅", "success");
+    } catch (e) {
+      toast("Something went wrong. Try again.", "error");
+    } finally {
+      setWeightSaving(false);
+    }
+  }
+
+  function openGoalEdit() {
+    setGoalInput(profile?.weightGoal ? String(profile.weightGoal) : "");
+    setShowGoalEdit(true);
+  }
+
+  async function handleSaveGoal() {
+    const val = Number(goalInput);
+    if (!val || val <= 0) { toast("Enter a valid target weight", "warning"); return; }
+    try {
+      await saveWeightGoal(user.uid, val, weightUnit);
+      await refreshProfile();
+      setShowGoalEdit(false);
+      toast("Goal updated ✅", "success");
+    } catch (e) {
+      toast("Something went wrong. Try again.", "error");
+    }
+  }
+
   const greeting = () => {
     const h = new Date().getHours();
     if (h < 12) return "Good morning";
     if (h < 17) return "Good afternoon";
     return "Good evening";
   };
+
+  // Derived weight-tracker values
+  const weeklyAvg   = useMemo(() => calcWeeklyAverage(weightLog), [weightLog]);
+  const trendData   = useMemo(() => calcTrendData(weightLog), [weightLog]);
+  const sortedLog    = useMemo(() => [...weightLog].sort((a,b) => a.date.localeCompare(b.date)), [weightLog]);
+  const currentWeight = todayWeight?.weight ?? sortedLog[sortedLog.length-1]?.weight ?? null;
+  const startWeight   = sortedLog[0]?.weight ?? currentWeight;
+  const goalProgress  = useMemo(
+    () => calcGoalProgress(currentWeight, profile?.weightGoal ?? null, startWeight),
+    [currentWeight, profile?.weightGoal, startWeight]
+  );
+  const showWeightPrompt = weightLoaded && !todayWeight && !weightPromptDismissed;
 
   // ── Render ─────────────────────────────────────────────────────────────
   return (
@@ -246,6 +379,101 @@ export default function Dashboard() {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Daily weight-log reminder — dismissible, client-side "have you logged
+          today?" nudge. No push infra required. */}
+      {showWeightPrompt && (
+        <div className="wt-reminder-banner">
+          <Scale size={14}/>
+          <span>Haven't logged today's weight yet — keep the trend going.</span>
+          <button onClick={() => setWeightPromptDismissed(true)} aria-label="Dismiss"><X size={14}/></button>
+        </div>
+      )}
+
+      {/* Weight tracker widget */}
+      <div className="wt-widget">
+        <div className="wt-header">
+          <span className="wt-title"><Scale size={15}/> Weight Tracker</span>
+          {weeklyAvg != null && <span className="wt-avg-chip">{weeklyAvg} {weightUnit} avg · 7d</span>}
+        </div>
+
+        <div className="wt-body">
+          <div className="wt-log-row">
+            <input
+              className="wt-input"
+              type="number" step="0.1" min="0"
+              value={weightInput}
+              onChange={e => setWeightInput(e.target.value)}
+              placeholder={`Weight (${weightUnit})`}
+              onKeyDown={e => e.key === "Enter" && handleLogWeight()}
+            />
+            <select className="wt-unit-select" value={weightUnit} onChange={e => setWeightUnit(e.target.value)}>
+              <option value="lbs">lbs</option>
+              <option value="kg">kg</option>
+            </select>
+            <button className="btn-primary wt-log-btn" onClick={handleLogWeight} disabled={weightSaving || !weightInput}>
+              {weightSaving ? "Saving…" : todayWeight ? "Update" : "Log Weight"}
+            </button>
+          </div>
+
+          {todayWeight && (
+            <div className="wt-logged-note"><CheckCircle2 size={12}/> Logged today: {todayWeight.weight} {todayWeight.unit}</div>
+          )}
+
+          {trendData.length > 1 && (
+            <div className="wt-trend">
+              <ResponsiveContainer width="100%" height={64}>
+                <LineChart data={trendData} margin={{ top:4, right:6, bottom:0, left:6 }}>
+                  <Tooltip
+                    contentStyle={{ background:"#111", border:"1px solid #333", borderRadius:8, fontSize:12 }}
+                    labelStyle={{ color:"#888" }}
+                    formatter={(v) => [`${v} ${weightUnit}`, "Weight"]}
+                  />
+                  <Line type="monotone" dataKey="weight" stroke="var(--accent)" strokeWidth={2} dot={false}/>
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+          {weightLoaded && trendData.length <= 1 && (
+            <div className="wt-empty-trend">Log a few days in a row to see your trend line.</div>
+          )}
+
+          {/* Goal progress */}
+          {profile?.weightGoal ? (
+            <div className="wt-goal-block">
+              {goalProgress && (
+                <>
+                  <div className="wt-goal-bar-bg"><div className="wt-goal-bar-fill" style={{ width:`${goalProgress.pct}%` }}/></div>
+                  <div className="wt-goal-label">
+                    {goalProgress.reached
+                      ? "Goal reached! 🎯"
+                      : `${goalProgress.delta} ${weightUnit} to ${goalProgress.direction === "lose" ? "lose" : "gain"} · goal ${profile.weightGoal} ${profile.weightGoalUnit || weightUnit}`}
+                  </div>
+                </>
+              )}
+              <button className="wt-goal-edit-btn" onClick={openGoalEdit}><Target size={12}/> Edit Goal</button>
+            </div>
+          ) : (
+            <button className="wt-goal-edit-btn wt-set-goal-btn" onClick={openGoalEdit}><Target size={12}/> Set a Goal Weight</button>
+          )}
+
+          {showGoalEdit && (
+            <div className="wt-goal-edit-form">
+              <input
+                className="wt-input"
+                type="number" step="0.1" min="0"
+                value={goalInput}
+                onChange={e => setGoalInput(e.target.value)}
+                placeholder={`Target weight (${weightUnit})`}
+                autoFocus
+                onKeyDown={e => e.key === "Enter" && handleSaveGoal()}
+              />
+              <button className="btn-primary wt-log-btn" onClick={handleSaveGoal} disabled={!goalInput}>Save</button>
+              <button className="btn-secondary" onClick={() => setShowGoalEdit(false)}>Cancel</button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* XP result card */}
