@@ -89,7 +89,9 @@ export default function Sidebar({ page, setPage, onOpenSettings, isOpen, onClose
 
       {li && (
         <div className="sidebar-xp">
-          <div className="sidebar-xp-bar"><div className="sidebar-xp-fill" style={{ width:`${li.progress}%`, background:li.current.color }}/></div>
+          {/* Always the brand accent, not the level color — level 1's color is
+              #888 gray, which made the bar invisible against the dark sidebar. */}
+          <div className="sidebar-xp-bar"><div className="sidebar-xp-fill" style={{ width:`${li.progress}%`, background:"var(--accent)" }}/></div>
           <div className="sidebar-xp-label">{profile?.xp||0} XP {li.next?`→ ${li.next.min}`:"(MAX)"}</div>
         </div>
       )}
@@ -131,7 +133,7 @@ export default function Sidebar({ page, setPage, onOpenSettings, isOpen, onClose
 
       {prov ? (
         <div className="sidebar-ai-chip" onClick={onOpenSettings} title="Change AI provider">
-          <span style={{ color:prov.color }}>{prov.icon}</span>
+          <img src={prov.icon} alt="" className="prov-logo-sm"/>
           <span style={{ fontSize:11, color:"#666", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{prov.name}</span>
           <span style={{ marginLeft:"auto", width:6, height:6, borderRadius:"50%", background:"#00FF88", flexShrink:0 }}/>
         </div>

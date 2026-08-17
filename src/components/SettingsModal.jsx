@@ -3,8 +3,15 @@ import {
   Bot, Search, Brain, Dna, Palette, CheckSquare, Gamepad2, Bell, Save, User,
   Settings as SettingsIcon, X, Eye, EyeOff, Camera, Zap, AlertTriangle,
   Moon, Sun, Monitor, Pencil, Droplet, Package, Trash2, Flame, Loader2, Award,
-  Compass, Globe, Shield, Sparkles,
+  Compass, Globe, Shield, Sparkles, Utensils, Dumbbell, Scale, BedDouble,
+  PersonStanding, Move, Footprints, Wind, Star,
 } from "lucide-react";
+
+// Data-sourced emoji (knowledgeBase.js categories, reminders.js list) can't
+// carry a JSX icon in their own data — look the icon up by id instead of
+// rendering the emoji field directly.
+const KB_CAT_ICONS = { nutrition: Utensils, training: Dumbbell, bodyComp: Scale, recovery: BedDouble, mindset: Brain };
+const REMINDER_ICONS = { water: Droplet, posture: PersonStanding, stretch: Move, eyes: Eye, move: Footprints, breath: Wind };
 import { getSettings, saveSettings, DEFAULT_SETTINGS } from "../lib/userSettings";
 import { PROVIDERS, MODEL_INFO, getModelInfo, getAIConfig, saveAIConfig, clearAIConfig, testKey, getProviderKey, getConfiguredProviders, clearProviderKey } from "../lib/aiProvider";
 import { SEARCH_PROVIDERS, providerNeedsKey, getSearchConfig, saveSearchConfig, clearSearchConfig } from "../lib/searchProvider";
@@ -283,7 +290,8 @@ export default function SettingsModal({ onClose, onResetKey, initialTab }) {
 
                 {activeAI && (
                   <div className="active-badge">
-                    <span style={{ color:PROVIDERS[activeAI.provider]?.color }}>{PROVIDERS[activeAI.provider]?.icon} {PROVIDERS[activeAI.provider]?.name}</span>
+                    <img src={PROVIDERS[activeAI.provider]?.icon} alt="" className="prov-logo-sm"/>
+                    <span style={{ color:PROVIDERS[activeAI.provider]?.color }}>{PROVIDERS[activeAI.provider]?.name}</span>
                     <span className="active-badge-model">{activeAI.model}</span>
                     <span className="live-dot"/>
                   </div>
@@ -294,7 +302,7 @@ export default function SettingsModal({ onClose, onResetKey, initialTab }) {
                     <button key={id} className={`prov-btn ${aiProvider===id?"active":""}`}
                       style={{ "--pc":p.color }} onClick={() => switchProvider(id)}
                       title={configuredProviders.includes(id) && activeAI?.provider!==id ? "Key saved — not currently active" : undefined}>
-                      <span style={{ fontSize:24 }}>{p.icon}</span>
+                      <span className="prov-logo-chip"><img src={p.icon} alt=""/></span>
                       <span style={{ fontWeight:700, fontSize:13 }}>{p.name}</span>
                       {activeAI?.provider===id && <span className="prov-live"/>}
                       {activeAI?.provider!==id && configuredProviders.includes(id) && <span className="prov-saved"/>}
@@ -365,6 +373,10 @@ export default function SettingsModal({ onClose, onResetKey, initialTab }) {
                   <button className="sbtn-save" onClick={saveAI} disabled={!aiKey.trim()}>Save</button>
                   {configuredProviders.includes(aiProvider) && <button className="sbtn-danger" onClick={clearAI}>Clear</button>}
                 </div>
+
+                <p className="icon-credit">
+                  Provider icons by <a href="https://lobehub.com/icons" target="_blank" rel="noopener noreferrer">LobeHub Icons</a>
+                </p>
               </div>
             )}
 
@@ -404,7 +416,7 @@ export default function SettingsModal({ onClose, onResetKey, initialTab }) {
                       <PIcon size={24}/>
                       <span style={{ fontWeight:700, fontSize:13 }}>
                         {p.label}
-                        {p.recommended && <span className="rec-badge">★ Recommended</span>}
+                        {p.recommended && <span className="rec-badge"><Star size={9} style={{ verticalAlign:"-1px" }}/> Recommended</span>}
                         {!providerNeedsKey(p) && <span className="rec-badge">No key</span>}
                       </span>
                       {searchCfg?.provider===p.id && searchCfg?.enabled && <span className="prov-live"/>}
@@ -830,11 +842,12 @@ function KnowledgeTab({ toast }) {
         {Object.entries(KB_CATEGORIES).map(([id, cat]) => {
           const mult = getCategoryMultiplier(cfg, id);
           const mine = cfg.customFacts.filter(f => f.category===id).length;
+          const CatIcon = KB_CAT_ICONS[id];
           return (
             <div key={id} className="kb-cat-row">
               <div className="kb-cat-info">
                 <div className="kb-cat-title">
-                  {cat.emoji} {cat.label}
+                  {CatIcon && <CatIcon size={14} style={{ verticalAlign:"-2px", marginRight:4 }}/>}{cat.label}
                   <span className="kb-cat-count"> · {curatedCounts[id]||0} curated{mine ? ` + ${mine} yours` : ""}</span>
                 </div>
                 <div className="kb-cat-desc">{cat.desc}</div>
@@ -881,10 +894,15 @@ function KnowledgeTab({ toast }) {
         <>
           <label className="slabel" style={{ marginTop:24 }}>Your facts ({cfg.customFacts.length})</label>
           <div className="kb-fact-list">
-            {cfg.customFacts.map(f => (
+            {cfg.customFacts.map(f => {
+              const FactCatIcon = KB_CAT_ICONS[f.category];
+              return (
               <div key={f.id} className="kb-fact-card">
                 <div className="kb-fact-meta">
-                  <span className="kb-fact-cat">{KB_CATEGORIES[f.category]?.emoji} {KB_CATEGORIES[f.category]?.label}</span>
+                  <span className="kb-fact-cat">
+                    {FactCatIcon && <FactCatIcon size={12} style={{ verticalAlign:"-2px", marginRight:3 }}/>}
+                    {KB_CATEGORIES[f.category]?.label}
+                  </span>
                   <span className="kb-fact-weight">weight {f.weight}/10</span>
                   <button className="kb-fact-remove" onClick={() => handleRemove(f.id)} title="Remove this fact"><X size={12}/></button>
                 </div>
@@ -895,7 +913,8 @@ function KnowledgeTab({ toast }) {
                   </div>
                 )}
               </div>
-            ))}
+              );
+            })}
           </div>
         </>
       )}
@@ -1059,7 +1078,7 @@ function HealthReminders({ toast }) {
         return (
           <div key={r.id} className="reminder-row">
             <div style={{ display:"flex", alignItems:"center", gap:10, flex:1 }}>
-              <span style={{ fontSize:20 }}>{r.icon}</span>
+              {(() => { const RIcon = REMINDER_ICONS[r.id]; return RIcon ? <RIcon size={18} style={{ flexShrink:0 }}/> : null; })()}
               <div>
                 <div style={{ fontSize:14, fontWeight:700 }}>{r.label}</div>
                 <div style={{ fontSize:12, color:"#888" }}>{r.msg}</div>

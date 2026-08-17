@@ -66,7 +66,7 @@ export default function APIKeyModal({ onDone, onShowTutorial }) {
               className={`provider-tab ${provider===id?"active":""}`}
               style={{ "--pcolor": p.color }}
               onClick={() => switchProvider(id)}>
-              <span className="provider-icon">{p.icon}</span>
+              <span className="provider-icon prov-logo-chip"><img src={p.icon} alt=""/></span>
               <span className="provider-name">{p.name}</span>
               {provider===id && <span className="provider-dot"/>}
             </button>
@@ -76,7 +76,9 @@ export default function APIKeyModal({ onDone, onShowTutorial }) {
         {/* Provider details */}
         <div className="apikey-body">
           <div className="provider-info">
-            <span style={{ color: prov.color, fontWeight:700 }}>{prov.icon} {prov.name}</span>
+            <span style={{ display:"inline-flex", alignItems:"center", gap:8, color: prov.color, fontWeight:700 }}>
+              <img src={prov.icon} alt="" className="prov-logo-sm"/> {prov.name}
+            </span>
             <a href={prov.url} target="_blank" rel="noopener noreferrer" className="get-key-link">
               Get a free key →
             </a>

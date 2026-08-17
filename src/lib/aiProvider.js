@@ -1,10 +1,19 @@
 // ── AI Provider abstraction ────────────────────────────────────────────────
 // All AI features route through callAI(). Keys live in localStorage only.
 
+// Real brand marks (via lobehub.com/icons — see credit in Settings → AI)
+// instead of emoji circles. `icon` below is now an image URL, not a glyph.
+import iconClaude      from "../assets/providers/claude-color.png";
+import iconGemini      from "../assets/providers/gemini-color.png";
+import iconOpenAI      from "../assets/providers/chatgpt-symbol-black.png";
+import iconGroq        from "../assets/providers/groq-black.png";
+import iconOpenRouter  from "../assets/providers/openrouter-color.png";
+import iconCloudflare  from "../assets/providers/cloudflare-color.png";
+
 export const PROVIDERS = {
   anthropic: {
     name: "Anthropic",
-    icon: "🟠",
+    icon: iconClaude,
     url: "https://console.anthropic.com/settings/keys",
     freeKey: false,                              // paid only
     placeholder: "sk-ant-api03-...",
@@ -17,7 +26,7 @@ export const PROVIDERS = {
   },
   gemini: {
     name: "Google Gemini",
-    icon: "🔵",
+    icon: iconGemini,
     url: "https://aistudio.google.com/app/apikey",
     freeKey: true,                               // free tier available
     placeholder: "AIza...",
@@ -31,7 +40,7 @@ export const PROVIDERS = {
   },
   openai: {
     name: "OpenAI",
-    icon: "🟢",
+    icon: iconOpenAI,
     url: "https://platform.openai.com/api-keys",
     freeKey: false,                              // pay-per-use
     placeholder: "sk-...",
@@ -45,7 +54,7 @@ export const PROVIDERS = {
   },
   groq: {
     name: "Groq",
-    icon: "⚡",
+    icon: iconGroq,
     url: "https://console.groq.com/keys",
     freeKey: true,
     placeholder: "gsk_...",
@@ -59,7 +68,7 @@ export const PROVIDERS = {
   },
   openrouter: {
     name: "OpenRouter",
-    icon: "🔀",
+    icon: iconOpenRouter,
     url: "https://openrouter.ai/keys",
     freeKey: true,                               // many free models
     placeholder: "sk-or-v1-...",
@@ -75,7 +84,7 @@ export const PROVIDERS = {
   },
   cloudflare: {
     name: "Cloudflare AI",
-    icon: "🌤️",
+    icon: iconCloudflare,
     url: "https://dash.cloudflare.com/profile/api-tokens",
     freeKey: true,
     placeholder: "ACCOUNT_ID|API_TOKEN",
