@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Bot, Search, Brain, Dna, Palette, CheckSquare, Gamepad2, Bell, Save, User,
   Settings as SettingsIcon, X, Eye, EyeOff, Camera, Zap, AlertTriangle,
   Moon, Sun, Monitor, Pencil, Droplet, Package, Trash2, Flame, Loader2, Award,
   Compass, Globe, Shield, Sparkles, Utensils, Dumbbell, Scale, BedDouble,
-  PersonStanding, Move, Footprints, Wind, Star,
+  PersonStanding, Move, Footprints, Wind, Star, ChevronLeft, ChevronRight,
 } from "lucide-react";
 
 // Data-sourced emoji (knowledgeBase.js categories, reminders.js list) can't
@@ -36,6 +36,46 @@ const TABS = [
   { id:"data",     icon:Save,        label:"Data"           },
   { id:"account",  icon:User,        label:"Account"        },
 ];
+
+// Mobile-only tab nav: a centered "current tab" pill flanked by arrow
+// buttons, plus swipe-over-the-pill — replacement for the horizontal
+// scroll strip, which read as left-anchored/lopsided at phone widths and
+// gave no way to jump tabs besides a blind scroll-and-hope.
+function SettingsTabStepper({ tab, setTab }) {
+  const idx = TABS.findIndex(t => t.id === tab);
+  const current = TABS[idx] ?? TABS[0];
+  const touchX = useRef(null);
+
+  const go = delta => {
+    const next = idx + delta;
+    if (next < 0 || next >= TABS.length) return;
+    setTab(TABS[next].id);
+  };
+
+  const onTouchStart = e => { touchX.current = e.touches[0].clientX; };
+  const onTouchEnd = e => {
+    if (touchX.current == null) return;
+    const dx = e.changedTouches[0].clientX - touchX.current;
+    touchX.current = null;
+    if (Math.abs(dx) < 40) return;
+    go(dx < 0 ? 1 : -1);
+  };
+
+  return (
+    <div className="settings-tab-stepper">
+      <button className="sts-arrow" onClick={() => go(-1)} disabled={idx<=0} aria-label="Previous tab">
+        <ChevronLeft size={18}/>
+      </button>
+      <div className="sts-current" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+        <current.icon className="stab-icon" size={16}/>
+        <span className="stab-label">{current.label}</span>
+      </div>
+      <button className="sts-arrow" onClick={() => go(1)} disabled={idx>=TABS.length-1} aria-label="Next tab">
+        <ChevronRight size={18}/>
+      </button>
+    </div>
+  );
+}
 
 // Explicit per-provider icons — a lookup (not a ternary chain) so a new provider
 // gets the generic Search glyph instead of inheriting whatever fell through last.
@@ -269,7 +309,7 @@ export default function SettingsModal({ onClose, onResetKey, initialTab }) {
         </div>
 
         <div className="settings-body">
-          {/* Sidebar tabs */}
+          {/* Sidebar tabs (desktop) */}
           <div className="settings-tabs">
             {TABS.map(t => (
               <button key={t.id} className={`settings-tab ${tab===t.id?"active":""}`} onClick={() => setTab(t.id)}>
@@ -278,6 +318,10 @@ export default function SettingsModal({ onClose, onResetKey, initialTab }) {
               </button>
             ))}
           </div>
+
+          {/* Tab stepper (mobile) — centered current tab, arrow buttons, and
+              swipe over the pill, instead of a left-anchored scroll strip. */}
+          <SettingsTabStepper tab={tab} setTab={setTab}/>
 
           {/* Content */}
           <div className="settings-content">

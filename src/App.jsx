@@ -96,7 +96,7 @@ function AppInner() {
     return () => window.removeEventListener("keydown", handler);
   }, [user, showSettings]);
 
-  if (user===undefined) return <div className="splash"><div className="splash-bolt">⚡</div><div className="splash-word">GRIND</div></div>;
+  if (user===undefined) return <div className="splash"><img src="/favicon.svg" alt="" className="splash-bolt"/><div className="splash-word">GRIND</div></div>;
   if (!user) return <Login/>;
 
   const navTo = (p) => { setPage(p); setSidebarOpen(false); };
