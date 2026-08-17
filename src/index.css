@@ -514,7 +514,7 @@ select option { background:var(--bg2); color:var(--text); }
 .privacy-link:hover { opacity:.7; }
 
 /* ── SIDEBAR AI CHIP ── */
-.sidebar-ai-chip { display:flex; align-items:center; gap:7px; padding:7px 12px; background:var(--bg3); border:1px solid var(--border); border-radius:8px; margin:8px 0; cursor:pointer; transition:border-color .2s; max-width:100%; overflow:hidden; }
+.sidebar-ai-chip { display:flex; align-items:center; gap:9px; padding:11px 12px; min-height:48px; background:var(--bg3); border:1px solid var(--border); border-radius:10px; margin:8px 0; cursor:pointer; transition:border-color .2s; max-width:100%; overflow:hidden; }
 .sidebar-ai-chip:hover { border-color:var(--border2); }
 
 /* ── SETTINGS MODAL ─────────────────────────────────────────────────────── */
@@ -2549,19 +2549,20 @@ body.no-animations *, body.no-animations *::before, body.no-animations *::after 
 }
 
 /* ── PROVIDER BRAND LOGOS (real images, replacing emoji circles) ──────────
-   Source PNGs have a baked-in white background (not transparent), so every
-   logo sits in a small white rounded chip regardless of the brand's own
-   color — keeps them legible and consistent against the dark theme instead
-   of showing a stray white square per icon. */
+   Source PNGs are genuinely transparent — no wrapper background needed for
+   the color-artwork providers. The two providers whose only artwork is a
+   flat black glyph (OpenAI, Groq — see iconMono in aiProvider.js) get
+   inverted to white via .mono so they stay visible on the dark theme. */
 .prov-logo-chip {
   display: flex; align-items: center; justify-content: center;
-  width: 30px; height: 30px; border-radius: 8px; background: #fff;
-  padding: 5px; flex-shrink: 0; overflow: hidden;
+  width: 34px; height: 34px; border-radius: 8px;
+  flex-shrink: 0; overflow: hidden;
 }
 .prov-logo-chip img { width: 100%; height: 100%; object-fit: contain; }
+[data-theme="dark"] .prov-logo-chip img.mono,
+[data-theme="dark"] .prov-logo-sm.mono { filter: invert(1); }
 .prov-logo-sm {
-  width: 18px; height: 18px; border-radius: 5px; background: #fff;
-  padding: 2px; object-fit: contain; flex-shrink: 0;
+  width: 24px; height: 24px; object-fit: contain; flex-shrink: 0;
 }
 .icon-credit { margin-top: 14px; font-size: 11px; color: var(--muted); text-align: center; }
 .icon-credit a { color: var(--muted2); text-decoration: underline; }

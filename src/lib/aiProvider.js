@@ -41,6 +41,7 @@ export const PROVIDERS = {
   openai: {
     name: "OpenAI",
     icon: iconOpenAI,
+    iconMono: true,   // artwork is black-on-transparent only — invert for dark theme
     url: "https://platform.openai.com/api-keys",
     freeKey: false,                              // pay-per-use
     placeholder: "sk-...",
@@ -55,6 +56,7 @@ export const PROVIDERS = {
   groq: {
     name: "Groq",
     icon: iconGroq,
+    iconMono: true,   // artwork is black-on-transparent only — invert for dark theme
     url: "https://console.groq.com/keys",
     freeKey: true,
     placeholder: "gsk_...",

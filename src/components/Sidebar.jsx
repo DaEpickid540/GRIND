@@ -136,7 +136,7 @@ export default function Sidebar({ page, setPage, onOpenSettings, isOpen, onClose
 
       {prov ? (
         <div className="sidebar-ai-chip" onClick={onOpenSettings} title="Change AI provider">
-          <img src={prov.icon} alt="" className="prov-logo-sm"/>
+          <img src={prov.icon} alt="" className={`prov-logo-sm${prov.iconMono ? " mono" : ""}`}/>
           <span style={{ fontSize:11, color:"#666", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{prov.name}</span>
           <span style={{ marginLeft:"auto", width:6, height:6, borderRadius:"50%", background:"#00FF88", flexShrink:0 }}/>
         </div>

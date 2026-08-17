@@ -302,7 +302,7 @@ export default function SettingsModal({ onClose, onResetKey, initialTab }) {
                     <button key={id} className={`prov-btn ${aiProvider===id?"active":""}`}
                       style={{ "--pc":p.color }} onClick={() => switchProvider(id)}
                       title={configuredProviders.includes(id) && activeAI?.provider!==id ? "Key saved — not currently active" : undefined}>
-                      <span className="prov-logo-chip"><img src={p.icon} alt=""/></span>
+                      <span className="prov-logo-chip"><img src={p.icon} alt="" className={p.iconMono ? "mono" : undefined}/></span>
                       <span style={{ fontWeight:700, fontSize:13 }}>{p.name}</span>
                       {activeAI?.provider===id && <span className="prov-live"/>}
                       {activeAI?.provider!==id && configuredProviders.includes(id) && <span className="prov-saved"/>}
