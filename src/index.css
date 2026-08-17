@@ -222,12 +222,16 @@ button { color: inherit; font: inherit; }
 .slot-duration { font-size:11px; color:var(--muted); margin-top:6px; font-family:'JetBrains Mono',monospace; }
 
 /* ── GYM ── */
-.tabs { display:flex; gap:8px; margin-bottom:20px; }
-.tab-btn { padding:8px 20px; background:var(--bg2); border:1px solid var(--border); border-radius:8px; color:var(--muted2); font-family:'Syne',sans-serif; font-size:14px; font-weight:600; cursor:pointer; transition:all .2s; }
+.tabs { display:flex; gap:8px; margin-bottom:20px; overflow-x:auto; -webkit-overflow-scrolling:touch; scroll-snap-type:x proximity; }
+.tab-btn { padding:8px 20px; background:var(--bg2); border:1px solid var(--border); border-radius:8px; color:var(--muted2); font-family:'Syne',sans-serif; font-size:14px; font-weight:600; cursor:pointer; transition:all .2s; flex-shrink:0; scroll-snap-align:start; white-space:nowrap; }
 .tab-btn.active { background:var(--bg4); border-color:var(--accent); color:var(--accent); }
 .form-card { background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:24px; }
 .form-row { display:flex; gap:10px; margin-bottom:10px; }
-.inp { flex:1; background:var(--bg3); border:1px solid var(--border2); border-radius:8px; color:var(--text); padding:10px 14px; font-family:'Syne',sans-serif; font-size:14px; }
+@media (max-width:480px) {
+  .form-row { flex-wrap:wrap; }
+  .form-row > .inp, .form-row > select.inp, .form-row > div { flex:1 1 calc(50% - 5px); min-width:100px; }
+}
+.inp { flex:1; min-width:0; background:var(--bg3); border:1px solid var(--border2); border-radius:8px; color:var(--text); padding:10px 14px; font-family:'Syne',sans-serif; font-size:14px; }
 .inp:focus { outline:none; border-color:var(--accent); }
 .inp:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .pr-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:12px; }
@@ -1098,6 +1102,9 @@ body.no-animations *, body.no-animations *::before, body.no-animations *::after 
   border-bottom: 1px solid var(--border); font-size: 13px; align-items: center;
 }
 .compare-row:last-child { border-bottom: none; }
+@media (max-width:480px) {
+  .compare-row { grid-template-columns:1fr; gap:2px; padding:10px 0; }
+}
 
 .tutorial-list { display: flex; flex-direction: column; gap: 10px; }
 .tutorial-item { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
